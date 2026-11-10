@@ -2,7 +2,7 @@
 
 ## Current local status — 2026-11-10
 
-Status: **w weryfikacji**. Release build **1.0.8** adds Enchant Database and fixes
+Status: **gotowe**. Release build **1.0.8** adds Enchant Database and fixes
 the audited calculation, import, character-migration, filter and simulator defects.
 It retains the AtlasLoot acquisition baseline, independent phase gates and verified-only defaults. Install only the local package
 in `D:\Games\Octo-clean\Interface\AddOns\AshenBuilds` for client validation.
@@ -68,6 +68,12 @@ The user explicitly authorized publishing 1.0.8 on 2026-11-10 after verification
   updates it with Git pull; release ZIPs and latest tags do not control its
   custom-addon installer. Publish verified builds to `main`. The URL to paste is
   `https://github.com/Shadgy/AshenBuilds`; see `LAUNCHER.md`.
+- The final code passed CI including compilation of every TOC file with native
+  Lua 5.0.3, all 892 addon assertions and 50 tooling tests. The real-client smoke
+  check on 2026-11-10 verified loading/reload, preserved existing gear/talents,
+  page navigation, enchant search/paging/target restrictions, and Paladin active
+  block/coverage changes. This supersedes the older candidate's unchecked-client
+  note. See `RELEASE-1.0.8.md` for the exact scope and remaining limits.
 - Keep the current weapon-skill crit model: +0.20 percentage points per +5
   skill. Its Octo verification remains unresolved and the user explicitly
   deferred that check. Do not mark the coefficient as Octo-verified.
