@@ -1,4 +1,4 @@
-# Weapon skill quest preview (local 1.0.4)
+# Weapon skill quest preview (local 1.0.5)
 
 At the top of the planner, select a weapon family beside **Weapon skill quest +5**
 and tick it if the planned character has completed that family's mastery. Each
@@ -54,7 +54,7 @@ without the matching racial changes from 300 to 305. Changing the family selecti
 alone should not change any total. Verify save/load and, for mixed dual wield,
 that each hand receives only its own marked family's bonus.
 
-The local 1.0.4 candidate is checked with Lua 5.1 behavioral regressions and Lua 5.0
+The local 1.0.5 candidate is checked with Lua 5.1 behavioral regressions and Lua 5.0
 API lint. A Lua 5.0 compiler is not installed locally; no remote CI was started
 because publication is disabled. The running Octo client remains the final check.
 
@@ -62,3 +62,20 @@ Also check **CLASS** before testing defense: Warlock cannot parry or use shields
 The shield Bulwark of Unshaken Earth (33135) has a recorded native 48 Block Value;
 Paladin/Warrior totals include this base, applicable bonuses and Strength. The main
 panel marks unsupported abilities N/A and exposes incompatible equipment notes.
+
+## Unresolved Octo crit verification
+
+Research on 2026-11-10 did not find a public Octo server implementation or a direct
+Octo statement confirming +0.04 percentage points of crit per bonus weapon skill.
+The developer post confirms melee miss. The official Turtle 1.17.2 weapon-skill
+changes discuss Hit and glancing damage; silence about crit is not confirmation
+of the old rule. The addon retains its inherited model and labels this limit in
+the crit tooltip.
+
+A controlled check should use the native **Attack** spellbook tooltip, with the
+same fully trained weapon, equipment, Agility and buffs before and after learning
+the corresponding mastery book. Record actual skill and all available crit decimals.
+The model predicts +5 skill and +0.20 percentage points of sheet crit. Changing the
+planner checkbox tests the addon, not the server. A native tooltip comparison checks
+the client display; proving server-side attack rolls needs server evidence or a
+separate combat-log study. Do not treat a small sample of attacks as proof.

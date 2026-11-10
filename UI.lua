@@ -593,7 +593,7 @@ end
 function AB:ShowStatTooltip(hit)
   local d=self.lastStats; if not d or not hit.key then return end
   local lines=d.explain and d.explain[hit.key]
-  local note=(hit.key=="parry" and d.parryNote) or ((hit.key=="block" or hit.key=="blockValue") and d.blockNote)
+  local note=(hit.key=="parry" and d.parryNote) or ((hit.key=="block" or hit.key=="blockPreview" or hit.key=="blockValue") and d.blockNote)
   if (not lines or table.getn(lines)==0) and not note and hit.key~="meleeHit" and hit.key~="rangedHit" then return end
   GameTooltip:SetOwner(hit,"ANCHOR_RIGHT")
   GameTooltip:SetText(hit.label.."  "..(hit.value or ""),1,.82,.28)
@@ -618,6 +618,11 @@ function AB:ShowStatTooltip(hit)
       GameTooltip:AddLine("Miss only: dodge, parry and block are separate outcomes. The target level also applies to Defense Details.",.65,.65,.65,true)
     else GameTooltip:AddLine("Gear and talent Hit bonus. Equip a melee weapon in humanoid form to include weapon skill.",.8,.8,.8,true) end
   elseif hit.key=="rangedHit" then GameTooltip:AddLine("Gear and talent bonus only. The Octo melee miss model is not applied to ranged attacks.",.7,.7,.7,true) end
+  if hit.key=="meleeCrit" or hit.key=="rangedCrit" then
+    GameTooltip:AddLine("Weapon-skill crit uses the inherited 1.12 model: +0.04 percentage points per bonus skill. This crit rule is not yet verified on Octo; the confirmed melee miss reduction is separate.",1,.72,.35,true)
+  elseif hit.key=="blockPreview" then
+    GameTooltip:AddLine("Includes selected Holy Shield, Redoubt or Shield Block effects while their duration and charges remain. These are sheet values; Defense Details also shows chances adjusted for the attacker level.",.8,.8,.8,true)
+  end
   GameTooltip:Show()
 end
 
@@ -646,8 +651,9 @@ function AB:RefreshStats()
   local function DefenseRow(label,v,pct,key,supported)
     if supported then Row(5,label,v,pct,key) else self:PutStat(5,label,"N/A",y,key,true); y=y-step end
   end
-  DefenseRow("Parry",d.parry,true,"parry",d.classCanParry); DefenseRow("Block",d.block,true,"block",d.classCanBlock); DefenseRow("Block Value",d.blockValue,false,"blockValue",d.classCanBlock)
-  self.defenseClassNote:SetText((not d.classCanParry and not d.classCanBlock) and (d.base.className..": no parry or shield block") or ("Calculated for "..d.base.className))
+  local activeBlock=d.defenseTable and d.defenseTable.activeBlock or 0
+  DefenseRow("Parry",d.parry,true,"parry",d.classCanParry); DefenseRow(activeBlock>0 and "Block (active)" or "Block",d.blockPreview,true,"blockPreview",d.classCanBlock); DefenseRow("Block Value",d.blockValue,false,"blockValue",d.classCanBlock)
+  self.defenseClassNote:SetText((not d.classCanParry and not d.classCanBlock) and (d.base.className..": no parry or shield block") or (activeBlock>0 and (d.base.className..": active block preview") or ("Calculated for "..d.base.className)))
   self.defenseClassNote:SetTextColor(1,.72,.35)
   local n=table.getn(d.warnings or {})
   if n>0 then self.calculationNotesButton:SetText("Calculation notes ("..n..")"); self.calculationNotesButton:Show() else self.calculationNotesButton:Hide() end
@@ -1650,7 +1656,7 @@ end
 -- Defensive detail view: effective attack-table values against a chosen level.
 ---------------------------------------------------------------------------
 function AB:CreateDefenseBrowser()
-  local f=CreateFrame("Frame","AshenBuildsDefenseBrowser",UIParent); f:SetWidth(500); f:SetHeight(480); f:SetPoint("CENTER",UIParent,"CENTER",0,20)
+  local f=CreateFrame("Frame","AshenBuildsDefenseBrowser",UIParent); f:SetWidth(540); f:SetHeight(520); f:SetPoint("CENTER",UIParent,"CENTER",0,20)
   MakeBackdrop(f); self:SetupWindow(f,{fit=true}); self:ApplyEmberBackground(f,10,.45,.5,.45); self:AddEmberHeader(f,34); f:Hide(); self.defenseBrowser=f
   local title=f:CreateFontString(nil,"OVERLAY","GameFontNormalLarge"); title:SetPoint("TOP",f,"TOP",0,-18); title:SetText("DEFENSE DETAILS")
   local close=CreateFrame("Button",nil,f,"UIPanelCloseButton"); close:SetPoint("TOPRIGHT",f,"TOPRIGHT",-4,-4)
@@ -1663,8 +1669,9 @@ function AB:CreateDefenseBrowser()
   local sheet=f:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall"); sheet:SetPoint("LEFT",f.target,"RIGHT",18,0); sheet:SetWidth(260); sheet:SetJustifyH("LEFT"); sheet:SetText("Incoming melee attacks from the front")
   f.rows={}
   local rowDefs={{"Miss","miss"},{"Dodge","dodge"},{"Parry","parry"},{"Block","block"},
-    {"Avoidance (miss + dodge + parry)","avoidance"},{"Attack-table coverage (+ block)","coverage"},
-    {"Gap to full coverage","capGap"},{"Critical hit chance","crit"},{"Crushing blow chance","crushing"}}
+    {"Avoidance (miss + dodge + parry)","avoidance"},{"Sheet coverage / required cap","sheetCoverage"},
+    {"Coverage against attacker / 100%","coverage"},{"Gap to full coverage","capGap"},
+    {"Critical hit chance","crit"},{"Crushing blow chance","crushing"}}
   local i
   for i=1,table.getn(rowDefs) do
     local row={key=rowDefs[i][2]}
@@ -1673,11 +1680,11 @@ function AB:CreateDefenseBrowser()
     f.rows[i]=row
   end
   local function Toggle(key) return function(v) AB:SetDefenseSetting(key,v); AB:RefreshUI() end end
-  f.holyShield=self:CreateCheck(f,"Holy Shield active",Toggle("holyShield")); f.holyShield:SetPoint("TOPLEFT",f,"TOPLEFT",28,-328)
-  f.redoubt=self:CreateCheck(f,"Redoubt active",Toggle("redoubt")); f.redoubt:SetPoint("TOPLEFT",f,"TOPLEFT",258,-328)
-  f.shieldBlock=self:CreateCheck(f,"Shield Block active",Toggle("shieldBlock")); f.shieldBlock:SetPoint("TOPLEFT",f,"TOPLEFT",28,-328)
-  f.note=f:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall"); f.note:SetPoint("TOPLEFT",f,"TOPLEFT",30,-370); f.note:SetWidth(440); f.note:SetJustifyH("LEFT")
-  f.note:SetText("Active effects require a shield and the matching class/talent.\nCoverage is a snapshot while selected effects have time and charges remaining.\nThe character panel shows passive sheet values.")
+  f.holyShield=self:CreateCheck(f,"Holy Shield active",Toggle("holyShield")); f.holyShield:SetPoint("TOPLEFT",f,"TOPLEFT",28,-354)
+  f.redoubt=self:CreateCheck(f,"Redoubt active",Toggle("redoubt")); f.redoubt:SetPoint("TOPLEFT",f,"TOPLEFT",288,-354)
+  f.shieldBlock=self:CreateCheck(f,"Shield Block active",Toggle("shieldBlock")); f.shieldBlock:SetPoint("TOPLEFT",f,"TOPLEFT",28,-354)
+  f.note=f:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall"); f.note:SetPoint("TOPLEFT",f,"TOPLEFT",30,-397); f.note:SetWidth(480); f.note:SetJustifyH("LEFT")
+  f.note:SetText("The main Block row includes selected active effects. Both coverage conventions have the same gap. Active buffs have limited duration and charges.")
   f.warnings=MakeButton(f,"Calculation notes",180,20); f.warnings:SetPoint("BOTTOM",f,"BOTTOM",0,10); f.warnings:Hide()
   local function ShowWarnings()
     GameTooltip:SetOwner(f.warnings,"ANCHOR_RIGHT"); GameTooltip:SetText("Calculation notes",1,.82,0)
@@ -1693,11 +1700,16 @@ end
 function AB:RefreshDefenseBrowser(stats)
   local f=self.defenseBrowser; if not f then return end
   local s=self:GetDefenseSettings(); local d=stats or self:GetDerivedStats(self.current); local t=d.defenseTable or {}
-  if t.modelNote then f.note:SetText(t.modelNote.."\nCoverage is a snapshot while selected effects have time and charges remaining.\nThe character panel shows passive sheet values.") end
+  f.note:SetText("Main Block includes selected active effects.\nSheet cap accounts for the attacker level; attacker-adjusted coverage caps at 100%. Both have the same gap.\nActive buffs have limited duration and charges; this is a snapshot.")
   f.calculationWarnings=d.warnings or {}
   if table.getn(f.calculationWarnings)>0 then f.warnings:SetText("Calculation notes ("..table.getn(f.calculationWarnings)..")"); f.warnings:Show() else f.warnings:Hide() end
   local i,row
-  for i=1,table.getn(f.rows) do row=f.rows[i]; row.value:SetText(t[row.key]~=nil and string.format("%.2f%%",t[row.key]) or "--") end
+  for i=1,table.getn(f.rows) do
+    row=f.rows[i]
+    if row.key=="sheetCoverage" and t.sheetCoverage then row.value:SetText(string.format("%.2f / %.2f%%",t.sheetCoverage,t.sheetCap))
+    elseif row.key=="coverage" and t.coverage then row.value:SetText(string.format("%.2f / 100%%",t.coverage))
+    else row.value:SetText(t[row.key]~=nil and string.format("%.2f%%",t[row.key]) or "--") end
+  end
   f.target:Refresh()
   local item=self:GetItem(self.current.items.OFFHAND or 0); local shield=item and item.shield
   local active=d.talentModifiers and d.talentModifiers.activeEffects or {}

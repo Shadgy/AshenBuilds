@@ -115,6 +115,19 @@ function AB:CalculateDefenseTable(stats,targetLevel,bonusBlock)
   t.coverage=Percent(t.rawCoverage)
   t.capGap=math.max(0,100-t.rawCoverage)
   t.overCap=math.max(0,t.rawCoverage-100)
+  -- The familiar 102.4% convention uses same-level sheet values. Each eligible
+  -- category loses 0.6 points against a +3-level attacker, unless it floors at 0.
+  -- Keep these totals unbounded above 100; the effective table stays separate.
+  t.sheetMiss=5+(stats.defense-level*5)*0.04
+  t.sheetDodge=stats.dodge or 0
+  t.sheetParry=stats.canParry and (stats.parry or 0) or 0
+  t.sheetBlock=stats.canBlock and ((stats.block or 0)+(bonusBlock or 0)) or 0
+  t.sheetCoverage=t.sheetMiss+t.sheetDodge+t.sheetParry+t.sheetBlock
+  local function SheetPenalty(value) return value-math.max(0,value-levelPenalty) end
+  t.sheetCap=100+SheetPenalty(t.sheetMiss)+SheetPenalty(t.sheetDodge)
+  if stats.canParry then t.sheetCap=t.sheetCap+SheetPenalty(t.sheetParry) end
+  if stats.canBlock then t.sheetCap=t.sheetCap+SheetPenalty(t.sheetBlock) end
+  t.sheetGap=math.max(0,t.sheetCap-t.sheetCoverage)
   -- Defense suppresses critical chance, but cannot directly remove crushing
   -- blows: their base chance uses Defense capped at the level maximum.
   t.rawCrit=Percent(5+(skill-stats.defense)*0.04)

@@ -4,7 +4,8 @@
 
 Open `/ab`. In the DEFENSE section choose **Details...**. Select the attacker's level
 and, when applicable, enable Holy Shield, Redoubt or Shield Block. The normal character
-panel shows passive values; the details window previews the selected active state.
+panel originally showed passive values in 1.0.2. Since 1.0.5, its **Block (active)**
+also previews the selected effects; the tooltip separates the passive contribution.
 
 - Avoidance is incoming miss + dodge + parry.
 - Attack-table coverage adds block to avoidance.
@@ -49,8 +50,9 @@ character-sheet values. Compare like-for-like states; remove unrelated buffs fir
 4. Compare attacker levels 60 and 63. Equal-level attacks have no ordinary crushing
    entry in the reference model. Extra Defense reduces crit chance but does not
    directly remove the base crushing entry; sufficient table coverage pushes it off.
-5. Toggle Holy Shield/Redoubt/Shield Block. Passive rows must remain unchanged while
-   the effective table changes. Remove the shield and confirm block/BV are zero.
+5. Toggle Holy Shield/Redoubt/Shield Block. In 1.0.5 the main **Block (active)** and
+   effective table must both update; passive block inputs and BV remain unchanged.
+   Remove the shield and confirm block/BV are zero.
 6. Equip two Deathbone pieces and verify +3 Defense; equip three Might pieces and
    verify the static +30 BV bonus is included once.
 7. At Octo phase 2, verify Sapphiron shoulder enchants are excluded from normal

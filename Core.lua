@@ -1,5 +1,5 @@
 AshenBuilds = AshenBuilds or {}
-AshenBuilds.VERSION = "1.0.4"
+AshenBuilds.VERSION = "1.0.5"
 
 AshenBuilds.SLOTS = {
   "HEAD","NECK","SHOULDER","BACK","CHEST","SHIRT","TABARD","WRIST","HANDS","WAIST","LEGS","FEET",
@@ -815,9 +815,12 @@ function AB:GetDerivedStats(build)
   end
   if regen then Explain("spiritRegen",{{"Spirit "..out.spi.." / "..regen[1].." + "..regen[2].." every 2 sec, x2.5",out.spiritRegen}}) end
   out.explain=ex
+  out.blockPreview=out.block
   if self.GetDefenseTable then
     out.defenseTable=self:GetDefenseTable(out,build)
     out.avoidance=out.defenseTable.avoidance; out.coverage=out.defenseTable.coverage
+    out.blockPreview=out.block+(out.defenseTable.activeBlock or 0)
+    Explain("blockPreview",{{"Passive block (sheet)",out.block,true},{"Selected active effects",out.defenseTable.activeBlock or 0,true}})
   end
   if self.GetCalculationWarnings then out.warnings=self:GetCalculationWarnings(build,out) end
   return out

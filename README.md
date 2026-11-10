@@ -4,7 +4,7 @@
 Based on [Tracer96/AshenBuilds](https://github.com/Tracer96/AshenBuilds), including
 the upstream fixes merged on 2026-09-30. Original addon authorship is preserved below.
 
-Version **1.0.4** is a local maintenance candidate and has not been uploaded to GitHub.
+Version **1.0.5** is a local maintenance candidate and has not been uploaded to GitHub.
 It still needs a game-client smoke check. Earlier candidates are available from
 successful GitHub Actions runs; published releases, when available, appear on this
 fork's Releases page. Extract the single `AshenBuilds` folder into `Interface\AddOns`.
@@ -14,7 +14,22 @@ See [CHANGELOG.md](CHANGELOG.md) for fork changes,
 [maintenance guide](https://github.com/Shadgy/AshenBuilds/blob/main/docs/MAINTENANCE.md)
 for testing and future updates.
 
-### What is new in 1.0.4
+### What is new in 1.0.5
+
+Holy Shield, Redoubt and Shield Block now update **Block (active)** in the main gear
+panel as well as Defense Details. The tooltip separates passive block from the
+selected active effects. These effects are snapshots with limited duration/charges.
+
+Defense Details shows both coverage conventions: same-level **sheet coverage / cap**
+(normally 102.4% for a level-60 shield tank against a level-63 boss) and chances already
+adjusted for the attacker, capped at 100%. They give the same remaining gap. See
+[coverage calculations](docs/DEFENSE-COVERAGE.md) for the screenshot example.
+
+The crit tooltip explicitly identifies weapon-skill crit as an inherited 1.12 model,
+not a confirmed Octo rule. +5 skill giving +0.20 percentage points of crit still needs
+a controlled native-client check or direct Octo confirmation.
+
+### Included from 1.0.4
 
 **Melee Hit** includes the matching weapon-skill contribution. Select the target level
 beside **MELEE & RANGED** and hover Melee Hit for miss and hit-cap details. At level 60,

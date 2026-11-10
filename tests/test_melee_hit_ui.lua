@@ -24,13 +24,13 @@ A:ShowStatTooltip(Stat(3,"meleeHit")[3])
 check("zero Hit still opens target miss tooltip",owners==1 and rows["MH special / single-wield miss"]=="8.00%")
 GameTooltip.SetOwner=oldOwner;A.AddTooltipDouble=oldDouble
 local w=Build("Warlock");w.items.HEAD=47016;A.current=w;A:RefreshUI()
-check("unsupported defenses show N/A rather than unexplained zero",Stat(5,"parry")[2]:GetText()=="N/A" and Stat(5,"block")[2]:GetText()=="N/A" and Stat(5,"blockValue")[2]:GetText()=="N/A")
+check("unsupported defenses show N/A rather than unexplained zero",Stat(5,"parry")[2]:GetText()=="N/A" and Stat(5,"blockPreview")[2]:GetText()=="N/A" and Stat(5,"blockValue")[2]:GetText()=="N/A")
 check("class ability limitation is visible on the main panel",A.defenseClassNote:GetText()=="Warlock: no parry or shield block")
 check("incompatible equipment exposes calculation notes on main panel",A.calculationNotesButton:IsShown())
 A:ShowCalculationWarnings(A.calculationNotesButton)
 check("calculation notes identify the selected class",GameTooltip:GetText()=="Calculated for Warlock")
 for _,class in ipairs({"Paladin","Warrior"}) do
   A.current=Build(class);A:RefreshUI()
-  check(class.." main panel shows positive parry block BV",Number(Stat(5,"parry")[2]:GetText())>0 and Number(Stat(5,"block")[2]:GetText())>0 and Number(Stat(5,"blockValue")[2]:GetText())>0)
+  check(class.." main panel shows positive parry block BV",Number(Stat(5,"parry")[2]:GetText())>0 and Number(Stat(5,"blockPreview")[2]:GetText())>0 and Number(Stat(5,"blockValue")[2]:GetText())>0)
   check(class.." panel labels its calculation class",A.defenseClassNote:GetText()=="Calculated for "..class)
 end

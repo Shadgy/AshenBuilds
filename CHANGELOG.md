@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.5 — local candidate, not published
+
+- Update the main gear panel's **Block (active)** immediately when Holy Shield, Redoubt or Shield Block is selected. Keep passive block separate internally for simulation inputs and show both contributions in the tooltip.
+- Display both sheet coverage / required cap and attacker-adjusted coverage / 100% in Defense Details. The familiar 102.4% shield-tank cap and the adjusted 100% table give the same gap; do not apply the boss penalty twice.
+- Preserve correct thresholds for classes without parry/block, low chances floored at zero and block above 100%.
+- Clearly mark weapon-skill crit as the inherited, Octo-unverified 1.12 model in the stat tooltip. Research found direct Octo confirmation for melee miss, not for the crit coefficient.
+- Add regressions reproducing the user's 94.12 / 102.40% sheet coverage and 91.72 / 100% boss coverage, both with an 8.28-point gap.
+- No GitHub push, remote CI or release was performed for this local candidate.
+
 ## 1.0.4 — local candidate, not published
 
 - Include the matching weapon-skill contribution in displayed Melee Hit. Show target level, remaining special/single-wield and dual-wield miss, and the flat Hit cap in its tooltip; keep simulator flat Hit separate to avoid counting skill twice.
