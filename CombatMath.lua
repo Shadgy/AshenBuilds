@@ -130,7 +130,7 @@ function AB:CalculateDefenseTable(stats,targetLevel,bonusBlock)
   t.sheetGap=math.max(0,t.sheetCap-t.sheetCoverage)
   -- Defense suppresses critical chance, but cannot directly remove crushing
   -- blows: their base chance uses Defense capped at the level maximum.
-  t.rawCrit=Percent(5+(skill-stats.defense)*0.04)
+  t.rawCrit=Percent(5+(skill-stats.defense)*0.04-(stats.critTakenReduction or 0))
   local crushDiff=skill-math.min(stats.defense,level*5)
   t.rawCrushing=crushDiff>=15 and Percent(crushDiff*2-15) or 0
   t.crit=math.min(t.rawCrit,math.max(0,100-t.rawCoverage))
@@ -171,6 +171,8 @@ function AB:GetCalculationWarnings(build,stats)
       local reason
       if raw and not self:IsClassAllowedRaw(raw,className) then
         reason="requires a different class than "..className
+      elseif raw and not self:IsRaceAllowedRaw(raw,build.race,id) then
+        reason="does not allow "..tostring(build.race).." in the catalog race restrictions"
       elseif item.itemClass==4 then
         local rule=self.ArmorProficiency and self.ArmorProficiency[item.subclass]
         if rule and (not rule[className] or level<rule[className]) then
@@ -183,11 +185,13 @@ function AB:GetCalculationWarnings(build,stats)
           reason="cannot be used by "..className.." (weapon proficiency)"
         end
       end
-      if reason then table.insert(warnings,slot..": "..item.n.." "..reason..". Its stats remain included for preview; check the selected CLASS.") end
+      if reason then table.insert(warnings,slot..": "..item.n.." "..reason..". Its stats remain included for preview; check the selected CLASS and RACE.") end
     end
     if item and item.shield and not item.shieldBlockKnown then table.insert(warnings,"Native shield Block Value is unknown for "..item.n.."; the displayed total is incomplete.") end
     local enchant=build.enchants and build.enchants[slot]
-    if enchant and not self:IsEnchantAllowed(slot,enchant,item) then table.insert(warnings,slot..": incompatible or orphan enchant is not counted.") end
+    if enchant and not AshenBuildsEnchants[enchant] then
+      table.insert(warnings,slot..": enchant #"..enchant.." is missing from the database; its effects are not counted.")
+    elseif enchant and not self:IsEnchantAllowed(slot,enchant,item) then table.insert(warnings,slot..": incompatible or orphan enchant is not counted.") end
   end
   local notes=stats.talentModifiers and stats.talentModifiers.notes or {}
   for i=1,table.getn(notes) do table.insert(warnings,notes[i]) end

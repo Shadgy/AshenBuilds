@@ -103,6 +103,29 @@ function AshenBuilds:IsClassAllowedRaw(r, className)
   return math.mod(math.floor(mask/bit),2) == 1
 end
 
+-- Item-template race masks use client race IDs, not the planner dropdown order.
+-- High elves use BloodElf's client ID 10; Goblin is ID 9.
+local RACE_BITS={human=1,orc=2,dwarf=4,nightelf=8,undead=16,scourge=16,tauren=32,
+  gnome=64,troll=128,goblin=256,highelf=512,bloodelf=512}
+AshenBuilds.ItemRaceMaskOverrides=AshenBuilds.ItemRaceMaskOverrides or {}
+function AshenBuilds:GetItemRaceBit(race)
+  return RACE_BITS[string.lower(string.gsub(tostring(race or ""),"%s+",""))]
+end
+function AshenBuilds:GetItemRaceMask(id,mask)
+  -- A recorded Octo exception can replace the catalog mask without changing saves.
+  local override=self.ItemRaceMaskOverrides[tonumber(id)]
+  if type(override)=="number" then return override end
+  if mask==nil then local raw=self:GetRawItem(id); mask=raw and raw[12] end
+  return tonumber(mask) or -1
+end
+function AshenBuilds:IsRaceAllowedRaw(raw,race,id)
+  if not raw then return false end
+  local mask=self:GetItemRaceMask(id,raw[12])
+  local bit=self:GetItemRaceBit(race)
+  if mask<0 or not bit then return true end
+  return math.mod(math.floor(mask/bit),2)==1
+end
+
 function AshenBuilds:IsHiddenRaw(r,ignoreAvailabilityFlag)
   if not r then return true end
   local name=r[1] or ""; local n=string.upper(name); local i,word

@@ -14,6 +14,12 @@ local function CloseDropdown()
 end
 AB.CloseDropdown = CloseDropdown
 
+-- A page refresh may invalidate its own row targets, but must leave unrelated
+-- multi-select controls (such as content locations) open.
+function AB:CloseDropdownFor(parent)
+  if list and list.owner and list.owner:GetParent()==parent then CloseDropdown() end
+end
+
 local function RenderList()
   local owner = list.owner; if not owner then return end
   local items, opts = list.items, owner.opts

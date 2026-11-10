@@ -290,7 +290,7 @@ local function WeaponFrom(AB, build, out, slot, c)
   -- Enchant: flat weapon damage or a proc.
   local enchantID = build.enchants and build.enchants[slot]
   local enchant = enchantID and AshenBuildsEnchants and AshenBuildsEnchants[enchantID]
-  if enchant then
+  if enchant and AB:IsEnchantAllowed(slot,enchantID,item) then
     w.bonus = w.bonus + S.EnchantWeaponDamage(enchant)
     w.enchantProc = enchant.spell and S.EnchantProcs[enchant.spell]
     w.enchantName = enchant.n
@@ -1202,6 +1202,7 @@ local function BossSwing(sim, a)
     else tmp = tmp + defense.rawCrushing; if roll < tmp then dmg = dmg * 1.5; sim:Count("boss.crushing") end end
   end
   local armor = max(0,c.playerArmor+2*(a.agi-c.out.agi))
+  if a.auras["Death Wish"].active then armor = armor * 0.8 end
   dmg = dmg * (1 - min(armor / (armor + 400 + 85 * cfg.targetLevel), 0.75))
   if a.stance == "defensive" then dmg = dmg * 0.9 end
   if blocked then

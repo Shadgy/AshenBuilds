@@ -213,6 +213,7 @@ function AB:CreateUI()
   self.weaponSkillQuestDrop:SetScript("OnLeave",function() GameTooltip:Hide() end)
   -- Tabs (styled and lined up on the header rule by SetupTabs).
   self.itemDatabaseButton=MakeButton(f,"ITEM DATABASE",118,26); self.itemDatabaseButton:SetScript("OnClick",function() AB:OpenItemBrowser("ALL") end)
+  self.enchantDatabaseButton=MakeButton(f,"ENCHANT DATABASE",126,26)
   self.savedBuildsButton=MakeButton(f,"SAVED BUILDS",112,26); self.savedBuildsButton:SetScript("OnClick",function() AB:OpenBuildBrowser() end)
   self.communityButton=MakeButton(f,"COMMUNITY",104,26); self.communityButton:SetScript("OnClick",function() AB:OpenCommunity() end)
   self.itemDatabaseButton:SetPoint("BOTTOMRIGHT",f,"TOPRIGHT",-24,-126)
@@ -274,7 +275,7 @@ function AB:CreateUI()
   for i=1,2 do local txt=child:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall"); txt:SetPoint("TOPLEFT",child,"TOPLEFT",(i-1)*413,0); txt:SetWidth(397); txt:SetJustifyH("LEFT"); txt:SetJustifyV("TOP"); self.setColumnTexts[i]=txt end
   scroll:EnableMouseWheel(true); scroll:SetScript("OnMouseWheel",function() local cur=this:GetVerticalScroll() or 0; local max=this:GetVerticalScrollRange() or 0; cur=cur-(arg1*28); if cur<0 then cur=0 elseif cur>max then cur=max end; this:SetVerticalScroll(cur) end)
 
-  self:CreateBuildBrowser(); self:CreateItemBrowser(); self:CreateSourcePanel(); self:CreateEnchantBrowser(); self:CreateCodeDialog()
+  self:CreateBuildBrowser(); self:CreateItemBrowser(); self:CreateSourcePanel(); self:CreateEnchantBrowser(); self:CreateEnchantDatabase(); self:CreateCodeDialog()
   self:CreateAvailabilityBrowser(); self:CreateDefenseBrowser()
   self:SetStatsView("totals"); self:RefreshUI()
 end
@@ -555,11 +556,12 @@ function AB:RefreshUI()
       if (item.q or 1)>=2 then b.glow:SetVertexColor(c[1],c[2],c[3]); b.glow:Show() else b.glow:Hide() end
     else
       b.icon:SetTexture(self:EmptySlotIcon(slot)); b.icon:SetTexCoord(0,1,0,1); b.icon:SetVertexColor(.8,.8,.8)
-      b.itemText:SetText("Empty"); b.itemText:SetTextColor(AB.THEME.dim[1],AB.THEME.dim[2],AB.THEME.dim[3]); b.glow:Hide()
+      b.itemText:SetText(id and ("Unknown item #"..id) or "Empty"); b.itemText:SetTextColor(AB.THEME.dim[1],AB.THEME.dim[2],AB.THEME.dim[3]); b.glow:Hide()
     end
-    b.hasEnchant=enchant and true or false
+    local enchantID=self.current.enchants and self.current.enchants[slot]
+    b.hasEnchant=enchantID and true or false
     b.canEnchant=item and AshenBuildsEnchantSlots[slot] and true or false
-    if enchant then b.enchantText:SetText(enchant.n); b.enchantText:SetTextColor(.2,1,.2); b.enchantButton:Show() else b.enchantButton:Hide() end
+    if enchant or enchantID then b.enchantText:SetText(enchant and enchant.n or ("Unknown enchant #"..enchantID)); b.enchantText:SetTextColor(.2,1,.2); b.enchantButton:Show() else b.enchantButton:Hide() end
   end
   self:RefreshStats(); self:RefreshSetBonuses()
   if self.statsView=="preview" then self:RefreshModel() end
@@ -977,7 +979,7 @@ function AB:RefreshItemResults()
   fl.minIlvl=tonumber(self.minIlvlBox:GetText() or ""); fl.maxIlvl=tonumber(self.maxIlvlBox:GetText() or "")
   local idx=self.ItemIndex
   local matches=idx:Query({slot=fl.slot,query=string.lower(self.itemSearch:GetText() or ""),quality=fl.quality,minIlvl=fl.minIlvl,maxIlvl=fl.maxIlvl,source=fl.source,stats=fl.stats,
-    maxReq=fl.usable and self:GetBuildLevel() or nil,class=fl.classOnly and self.current.class or nil,showHidden=fl.showHidden,
+    maxReq=fl.usable and self:GetBuildLevel() or nil,class=fl.classOnly and self.current.class or nil,race=(fl.usable or fl.classOnly) and self.current.race or nil,showHidden=fl.showHidden,
     level=fl.usable and self:GetBuildLevel() or nil,armor=(fl.armor or 0)>0 and fl.armor or nil,availability=self:GetAvailabilitySettings()})
   if fl.sort=="ilvlUp" then
     local n=table.getn(matches); local i; for i=1,math.floor(n/2) do matches[i],matches[n-i+1]=matches[n-i+1],matches[i] end
@@ -1025,8 +1027,8 @@ function AB:RenderItemPage()
 end
 
 -- "+12 Stamina, +8 Strength" in a fixed stat order.
-local SUMMARY_ORDER={"str","agi","sta","int","spi","health","mana","ap","rap","feralAp","crit","hit","rangedHit","rangedCrit","haste","leech","armorPen","spellPower","healing","spellCrit","spellHit","mp5","hp5","defense","dodge","parry","block","blockValue","firePower","frostPower","shadowPower","arcanePower","naturePower","holyPower","fireRes","frostRes","natureRes","shadowRes","arcaneRes","armor"}
-local PCT_STATS={crit=true,hit=true,rangedHit=true,rangedCrit=true,leech=true,haste=true,spellCrit=true,spellHit=true,dodge=true,parry=true,block=true}
+local SUMMARY_ORDER={"str","agi","sta","int","spi","health","mana","ap","rap","feralAp","crit","hit","rangedHit","rangedCrit","haste","leech","armorPen","spellPower","healing","spellCrit","spellHit","mp5","hp5","defense","dodge","parry","block","blockValue","critTakenReduction","firePower","frostPower","shadowPower","arcanePower","naturePower","holyPower","fireRes","frostRes","natureRes","shadowRes","arcaneRes","armor"}
+local PCT_STATS={crit=true,hit=true,rangedHit=true,rangedCrit=true,leech=true,haste=true,spellCrit=true,spellHit=true,dodge=true,parry=true,block=true,critTakenReduction=true}
 function AB:StatSummary(stats)
   if not stats then return "" end
   local parts={}; local i,k,v
@@ -1048,11 +1050,12 @@ local ENCHANT_GROUPS={
   {"ap","Attack Power",{"ap","rap"}},{"hitcrit","Hit & Crit",{"hit","crit","rangedHit","rangedCrit","spellHit","spellCrit"}},{"haste","Haste",{"haste"}},
   {"spell","Spell Damage",{"spellPower","firePower","frostPower","shadowPower","arcanePower","naturePower","holyPower"}},{"healing","Healing",{"healing"}},
   {"mana","Mana & Regen",{"mana","mp5"}},{"health","Health",{"health"}},
-  {"tank","Armor & Defense",{"armor","defense","dodge","parry","block","blockValue"}},
+  {"tank","Armor & Defense",{"armor","defense","dodge","parry","block","blockValue","critTakenReduction"}},
   {"resist","Resistances",{"fireRes","frostRes","natureRes","shadowRes","arcaneRes"}},
   {"pen","Penetration",{"armorPen","spellPen"}},{"leech","Vampirism",{"leech"}},
   {"other","Other Effects"},
 }
+AB.ENCHANT_GROUPS=ENCHANT_GROUPS
 local function GroupOf(key) local i for i=1,table.getn(ENCHANT_GROUPS) do if ENCHANT_GROUPS[i][1]==key then return ENCHANT_GROUPS[i] end end return ENCHANT_GROUPS[1] end
 local function GroupValue(e,group) local v,i=0,nil; for i=1,table.getn(group[3] or {}) do v=v+(e.stats[group[3][i]] or 0) end; return v end
 
@@ -1123,24 +1126,34 @@ function AB:OpenEnchantBrowser(slot)
   self:FilterEnchants(); f:Show()
 end
 
-function AB:FilterEnchants()
-  if not self.enchantCandidates then return end
-  local query=string.lower(self.enchantSearch:GetText() or "")
-  local group=GroupOf(self.enchantFilter.group)
-  local current=self.current.enchants[self.enchantSlot]
+local function SameEnchantScope(a,b)
+  if a.req~=b.req or a.minIlvl~=b.minIlvl then return false end
+  local slot
+  for slot in pairs(a.slots) do if not b.slots[slot] then return false end end
+  for slot in pairs(b.slots) do if not a.slots[slot] then return false end end
+  return true
+end
+
+-- Shared by the equipment picker and the catalog. Catalog comparisons also
+-- respect application scope: a weapon enchant cannot hide a shoulder enchant.
+function AB:QueryEnchants(candidates,filter,query,current,scoped)
+  query=string.lower(query or "")
+  local group=GroupOf(filter.group)
   local pool,out,sourceStatus={},{},{}
   local contentSettings=self:GetAvailabilitySettings()
   local i,j,id,e,keep,text
-  for i=1,table.getn(self.enchantCandidates) do
-    id=self.enchantCandidates[i]; e=AshenBuildsEnchants[id]
-    local availability=self:GetEnchantAvailability(id)
-    sourceStatus[id]=availability.status
-    keep=self:MatchesAvailability(availability) and self:MatchesContentInstances(availability)
+  for i=1,table.getn(candidates) do
+    id=candidates[i]; e=AshenBuildsEnchants[id]; keep=e and true or false
     if keep and group[1]=="other" then keep=not next(e.stats)
     elseif keep and group[3] then keep=GroupValue(e,group)>0 end
     if keep and query~="" then
       text=string.lower(e.n.." "..(e.tip or "").." "..self:StatSummary(e.stats))
       keep=string.find(text,query,1,true) and true or false
+    end
+    if keep then
+      local availability=self:GetEnchantAvailability(id,contentSettings)
+      sourceStatus[id]=availability.status
+      keep=self:MatchesAvailability(availability,contentSettings) and self:MatchesContentInstances(availability,contentSettings)
     end
     if keep then table.insert(pool,id) end
   end
@@ -1148,11 +1161,11 @@ function AB:FilterEnchants()
     id=pool[i]; keep=true
     -- Hide enchants another candidate strictly beats (Minor/Lesser/Greater Stamina when Superior exists),
     -- but never the one currently applied.
-    if not self.enchantFilter.lower and id~=current then
+    if not filter.lower and id~=current then
       for j=1,table.getn(pool) do
         local other=pool[j]
         local comparable=contentSettings.profile=="Catalog" or sourceStatus[id]~="available" or sourceStatus[other]=="available"
-        if other~=id and comparable and Dominates(AshenBuildsEnchants[other],AshenBuildsEnchants[id]) then keep=false; break end
+        if other~=id and comparable and (not scoped or SameEnchantScope(AshenBuildsEnchants[other],AshenBuildsEnchants[id])) and Dominates(AshenBuildsEnchants[other],AshenBuildsEnchants[id]) then keep=false; break end
       end
     end
     if keep then table.insert(out,id) end
@@ -1160,7 +1173,13 @@ function AB:FilterEnchants()
   if group[3] then
     local g=group; table.sort(out,function(a,b) local va,vb=GroupValue(AshenBuildsEnchants[a],g),GroupValue(AshenBuildsEnchants[b],g); if va~=vb then return va>vb end return AshenBuildsEnchants[a].n<AshenBuildsEnchants[b].n end)
   end
-  self.enchantMatches=out; self.enchantHidden=table.getn(pool)-table.getn(out); self.enchantOffset=0
+  return out,table.getn(pool)-table.getn(out)
+end
+
+function AB:FilterEnchants()
+  if not self.enchantCandidates then return end
+  self.enchantMatches,self.enchantHidden=self:QueryEnchants(self.enchantCandidates,self.enchantFilter,self.enchantSearch:GetText(),self.current.enchants[self.enchantSlot])
+  self.enchantOffset=0
   self:RenderEnchantRows()
 end
 
@@ -1187,7 +1206,7 @@ function AB:RenderEnchantRows()
 end
 
 function AB:CreateCodeDialog() local f=CreateFrame("Frame","AshenBuildsCodeDialog",UIParent); f:SetWidth(650); f:SetHeight(190); f:SetPoint("CENTER",UIParent,"CENTER",0,0); MakeBackdrop(f); self:SetupWindow(f); f:Hide(); self.codeDialog=f; self:ApplyEmberBackground(f,10,0.5,0.5,0.45); self:AddEmberHeader(f,34); f.title=f:CreateFontString(nil,"OVERLAY","GameFontNormalLarge"); f.title:SetPoint("TOP",f,"TOP",0,-18); local edit=CreateFrame("EditBox","AshenBuildsCodeEdit",f,"InputBoxTemplate"); edit:SetWidth(580); edit:SetHeight(30); edit:SetPoint("TOP",f,"TOP",0,-62); edit:SetAutoFocus(false); edit:SetMaxLetters(4096); self.codeEdit=edit; local action=MakeButton(f,"Import",90,24); action:SetPoint("BOTTOM",f,"BOTTOM",-50,24); self.codeAction=action; local cancel=MakeButton(f,"Close",90,24); cancel:SetPoint("LEFT",action,"RIGHT",10,0); cancel:SetScript("OnClick",function() f:Hide() end) end
-function AB:ShowCodeDialog(title,text,isImport) self.codeDialog.title:SetText(title); self.codeEdit:SetText(text or ""); self.codeDialog:Show(); self.codeEdit:SetFocus(); self.codeEdit:HighlightText(); if isImport then self.codeAction:SetText("Import"); self.codeAction:Show(); self.codeAction:SetScript("OnClick",function() if AB:ImportBuild(AB.codeEdit:GetText()) then AB.codeDialog:Hide() end end) else self.codeAction:Hide() end end
+function AB:ShowCodeDialog(title,text,isImport) self.codeDialog.title:SetText(title); self.codeEdit:SetText(text or ""); self.codeDialog:Show(); self.codeEdit:SetFocus(); self.codeEdit:HighlightText(); if isImport then self.codeAction:SetText("Import"); self.codeAction:Show(); self.codeAction:SetScript("OnClick",function() AB:ImportBuild(AB.codeEdit:GetText(),function() AB.codeDialog:Hide() end) end) else self.codeAction:Hide() end end
 function AB:ToggleUI() if self.frame:IsShown() then self.frame:Hide() else self:RefreshUI(); self.frame:Show() end end
 
 ---------------------------------------------------------------------------
@@ -1300,9 +1319,9 @@ function AB:SetupTabs()
   if self.tabs then return end
   self.tabs={}
   self.plannerButton=MakeButton(self.frame,"PLANNER",84,26)
-  -- Left to right: Planner, Talents, Item Database, Saved Builds, Community.
-  local order={self.plannerButton,self.talentOpenButton,self.itemDatabaseButton,self.savedBuildsButton,self.communityButton}
-  local widths={84,84,118,112,104}
+  -- Six tabs fit to the right of the level field without covering profile controls.
+  local order={self.plannerButton,self.talentOpenButton,self.itemDatabaseButton,self.enchantDatabaseButton,self.savedBuildsButton,self.communityButton}
+  local widths={80,78,112,126,102,90}
   local i,prev
   for i=table.getn(order),1,-1 do
     local b=order[i]
@@ -1326,6 +1345,8 @@ function AB:SetupTabs()
   end
   self:EmbedPage(self.itemBrowser,40,true)
   self:AddTab("items",self.itemDatabaseButton,self.itemBrowser,function() AB:OpenItemBrowser("ALL") end,function() return AB.browserSlot=="ALL" end)
+  self:EmbedPage(self.enchantDatabase,40,true)
+  self:AddTab("enchants",self.enchantDatabaseButton,self.enchantDatabase,function() AB:OpenEnchantDatabase() end)
   self:EmbedPage(self.buildBrowser,40,true)
   self:AddTab("saved",self.savedBuildsButton,self.buildBrowser,function() AB:OpenBuildBrowser() end)
   if self.communityButton and self.communityFrame then
@@ -1652,6 +1673,7 @@ function AB:RefreshContentViews()
   self:RefreshAvailabilityControls()
   if self.itemRows and self.itemBrowser:IsShown() then self.itemPage=1; self:RefreshItemResults() end
   if self.enchantCandidates and self.enchantBrowser:IsShown() then self:FilterEnchants() end
+  if self.enchantDatabase and self.enchantDatabase:IsShown() then self:RefreshEnchantDatabase() end
 end
 
 function AB:RefreshAvailabilityControls()

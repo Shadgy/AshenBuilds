@@ -1,5 +1,5 @@
 AshenBuilds = AshenBuilds or {}
-AshenBuilds.VERSION = "1.0.7"
+AshenBuilds.VERSION = "1.0.8"
 
 AshenBuilds.SLOTS = {
   "HEAD","NECK","SHOULDER","BACK","CHEST","SHIRT","TABARD","WRIST","HANDS","WAIST","LEGS","FEET",
@@ -46,7 +46,7 @@ AshenBuilds.STAT_LABELS = {
   swordSkill="Sword Skill", axeSkill="Axe Skill", daggerSkill="Dagger Skill", maceSkill="Mace Skill", fistSkill="Fist Skill", polearmSkill="Polearm Skill", bowSkill="Bow Skill", gunSkill="Gun Skill", crossbowSkill="Crossbow Skill", thrownSkill="Thrown Skill",
   firePower="Fire Power", frostPower="Frost Power", naturePower="Nature Power", shadowPower="Shadow Power", arcanePower="Arcane Power", holyPower="Holy Power", spellPen="Spell Penetration", armorPen="Armor Penetration", haste="Haste",
   rangedHit="Ranged Hit", health="Health", mana="Mana", feralAp="Feral Attack Power", blockValue="Block Value",
-  rangedCrit="Ranged Crit", leech="Vampirism"
+  rangedCrit="Ranged Crit", leech="Vampirism", critTakenReduction="Crit received reduction"
 }
 AshenBuilds.GEAR_STAT_ORDER = {
   "str","agi","sta","int","spi","armor","ap","rap","spellPower","healing","hit","spellHit","crit","spellCrit",
@@ -136,14 +136,23 @@ function AshenBuilds:InitializeDB()
   if not AshenBuildsDB then AshenBuildsDB = {} end
   if not AshenBuildsDB.builds then AshenBuildsDB.builds = {} end
   if not AshenBuildsDB.settings then AshenBuildsDB.settings = {scale=1, locked=false} end
+  -- Capture the old shared planner only once, before creating a per-character
+  -- map. DB.current thereafter belongs to the last character, not to migration.
+  if not AshenBuildsDB.perCharacterMigration then
+    if not AshenBuildsDB.currentByChar and AshenBuildsDB.current and not AshenBuildsDB.sharedCurrentClaimed then
+      AshenBuildsDB.legacySharedCurrent = self:DeepCopy(AshenBuildsDB.current)
+    end
+    AshenBuildsDB.perCharacterMigration = 1
+  end
   AshenBuildsDB.currentByChar = AshenBuildsDB.currentByChar or {}
   local key = AB_CharKey()
   local current = AshenBuildsDB.currentByChar[key]
   if not current then
     -- Saves from before per-character planners had one shared build: the first
     -- character of that class to log in keeps it, everyone else starts fresh.
-    local shared = AshenBuildsDB.current
-    if shared and not AshenBuildsDB.sharedCurrentClaimed and shared.class == AB_PlayerClass() then current = shared; AshenBuildsDB.sharedCurrentClaimed = true
+    local shared = AshenBuildsDB.legacySharedCurrent
+    if shared and not AshenBuildsDB.sharedCurrentClaimed and shared.class == AB_PlayerClass() then
+      current = shared; AshenBuildsDB.sharedCurrentClaimed = true; AshenBuildsDB.legacySharedCurrent = nil
     else current = AB_NewBuild("New Build") end
     AshenBuildsDB.currentByChar[key] = current
   end
@@ -479,6 +488,8 @@ end
 -- True when a build has anything worth keeping.
 function AshenBuilds:BuildHasContent(build)
   if next(build.items or {}) or next(build.enchants or {}) then return true end
+  if build.notes and build.notes~="" then return true end
+  if next(build.unmappedEnchants or {}) then return true end
   if type(build.weaponSkillQuests)=="table" then
     for _,enabled in pairs(build.weaponSkillQuests) do
       if enabled==true or enabled==1 then return true end
@@ -530,11 +541,42 @@ function AshenBuilds:DeepCopy(value)
 end
 
 local AB_CHARS="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_"
-local function Enc(n) n=tonumber(n) or 0; if n==0 then return "0" end; local out=""; while n>0 do local r=math.mod(n,64); out=string.sub(AB_CHARS,r+1,r+1)..out; n=math.floor(n/64) end; return out end
-local function Dec(s) local n=0; for i=1,string.len(s) do local p=string.find(AB_CHARS,string.sub(s,i,i),1,true); if not p then return nil end; n=n*64+(p-1) end; return n end
+local MAX_ENCODED_NUMBER=9007199254740991 -- largest exact integer in the client's number type
+local MAX_BUILD_ID=4294967295
+local function Enc(n)
+  n=tonumber(n) or 0
+  if n~=n or n<0 or n>MAX_ENCODED_NUMBER or n~=math.floor(n) or n==0 then return "0" end
+  local out=""
+  while n>0 do local r=math.mod(n,64); out=string.sub(AB_CHARS,r+1,r+1)..out; n=math.floor(n/64) end
+  return out
+end
+local function Dec(s)
+  if type(s)~="string" or string.len(s)==0 or string.len(s)>9 then return nil end
+  local n=0
+  for i=1,string.len(s) do
+    local p=string.find(AB_CHARS,string.sub(s,i,i),1,true)
+    if not p then return nil end
+    n=n*64+(p-1); if n>MAX_ENCODED_NUMBER then return nil end
+  end
+  return n
+end
 
 AshenBuilds.EncodeNumber=Enc
 AshenBuilds.DecodeNumber=Dec
+
+-- Unlike gfind("[^%.]+"), this rejects missing fields instead of shifting slots.
+function AshenBuilds:SplitBuildCode(code)
+  if type(code)~="string" or string.len(code)>4096 then return nil end
+  local tokens,start,pos={},1,nil
+  while true do
+    pos=string.find(code,".",start,true)
+    local token=string.sub(code,start,pos and pos-1 or string.len(code))
+    if token=="" then return nil end
+    table.insert(tokens,token)
+    if not pos then return tokens end
+    start=pos+1
+  end
+end
 
 function AshenBuilds:ExportBuild(build)
   build=build or self.current
@@ -544,44 +586,73 @@ function AshenBuilds:ExportBuild(build)
   return table.concat(parts,".")
 end
 
-function AshenBuilds:ImportBuild(code)
-  if not code then AB_Print("Invalid build code.") return false end
-  if string.sub(code,1,4)=="AB1." then return self:ImportLegacyBuild(code) end
-  local build,err=self:DecodeBuild(code)
+function AshenBuilds:ImportBuild(code,onImported)
+  if type(code)~="string" then AB_Print("Invalid build code.") return false end
+  local legacy=string.sub(code,1,4)=="AB1."
+  local build,err
+  if legacy then build,err=self:DecodeLegacyBuild(code) else build,err=self:DecodeBuild(code) end
   if not build then AB_Print(err) return false end
-  self.current=build; AshenBuildsDB.current=build; self:RefreshUI(); AB_Print("Build imported."); return true
+  local imported=false
+  self:ConfirmDiscard("the imported build",function()
+    self.current=build; AshenBuildsDB.current=build; self:RefreshUI()
+    AB_Print(legacy and "Legacy build imported." or "Build imported.")
+    imported=true
+    if onImported then onImported(build) end
+  end)
+  return imported
 end
 
 -- Parses an AB2 code into a build table without touching the planner.
 -- Returns nil plus a message when the code is malformed.
 function AshenBuilds:DecodeBuild(code)
   if type(code)~="string" or string.sub(code,1,4)~="AB2." then return nil,"Invalid build code." end
-  local tokens={}; for token in string.gfind(code,"[^%.]+") do table.insert(tokens,token) end
+  local tokens=self:SplitBuildCode(code)
+  if not tokens then return nil,"Invalid build code fields." end
   local legacy17={"HEAD","NECK","SHOULDER","BACK","CHEST","WRIST","HANDS","WAIST","LEGS","FEET","FINGER1","FINGER2","TRINKET1","TRINKET2","MAINHAND","OFFHAND","RANGED"}
   local newCount=5+(table.getn(self.SLOTS)*2)
   local legacyCount=5+(table.getn(legacy17)*2)
   local slots=self.SLOTS
   if table.getn(tokens)==legacyCount then slots=legacy17
   elseif table.getn(tokens)~=newCount then return nil,"Incomplete build code." end
+  local class,race,level,spec=Dec(tokens[2]),Dec(tokens[3]),Dec(tokens[4]),Dec(tokens[5])
+  if not class or not self.CLASSES[class] or not race or not self.RACES[race] or not level or level<1 or level>60 then return nil,"Invalid class, race or level in build code." end
+  local specs=self.SPECS[self.CLASSES[class]]
+  if not spec or not specs or not specs[spec] then return nil,"Invalid specialization in build code." end
   local build=AB_NewBuild("Imported Build")
-  build.class=self.CLASSES[Dec(tokens[2]) or 1] or "Warrior"; build.race=self.RACES[Dec(tokens[3]) or 1] or "Human"; build.level=AB_ValidLevel(Dec(tokens[4]) or 60)
-  build.spec=(self.SPECS[build.class] or {"Custom"})[Dec(tokens[5]) or 1] or "Custom"
+  build.class=self.CLASSES[class]; build.race=self.RACES[race]; build.level=level; build.spec=specs[spec]
   local i,id,enchantID,pos=1,nil,nil,6
-  for i=1,table.getn(slots) do id=Dec(tokens[pos]); enchantID=Dec(tokens[pos+1]); if id and self:GetItem(id) then build.items[slots[i]]=id end; if enchantID and enchantID>0 and AshenBuildsEnchants[enchantID] then build.enchants[slots[i]]=enchantID end; pos=pos+2 end
+  for i=1,table.getn(slots) do
+    id=Dec(tokens[pos]); enchantID=Dec(tokens[pos+1])
+    if not id or id>MAX_BUILD_ID or not enchantID or enchantID>MAX_BUILD_ID then return nil,"Invalid item or enchant in build code." end
+    if id>0 then build.items[slots[i]]=id end
+    if enchantID>0 then build.enchants[slots[i]]=enchantID end
+    pos=pos+2
+  end
   return build
 end
 
-function AshenBuilds:ImportLegacyBuild(code)
-  local tokens={}; for token in string.gfind(code,"[^%.]+") do table.insert(tokens,token) end
+function AshenBuilds:DecodeLegacyBuild(code)
+  if type(code)~="string" or string.sub(code,1,4)~="AB1." then return nil,"Invalid legacy build code." end
+  local tokens=self:SplitBuildCode(code)
+  if not tokens then return nil,"Invalid legacy build code fields." end
   local legacy17={"HEAD","NECK","SHOULDER","BACK","CHEST","WRIST","HANDS","WAIST","LEGS","FEET","FINGER1","FINGER2","TRINKET1","TRINKET2","MAINHAND","OFFHAND","RANGED"}
   local newCount=table.getn(self.SLOTS)+1
   local legacyCount=table.getn(legacy17)+1
   local slots=self.SLOTS
   if table.getn(tokens)==legacyCount then slots=legacy17
-  elseif table.getn(tokens)~=newCount then AB_Print("Incomplete legacy build code.") return false end
+  elseif table.getn(tokens)~=newCount then return nil,"Incomplete legacy build code." end
   local build=AB_NewBuild("Imported Build")
-  local i,id; for i=1,table.getn(slots) do id=Dec(tokens[i+1]); if id and id>0 and self:GetItem(id) then build.items[slots[i]]=id end end
-  self.current=build; AshenBuildsDB.current=build; self:RefreshUI(); AB_Print("Legacy build imported."); return true
+  local i,id
+  for i=1,table.getn(slots) do
+    id=Dec(tokens[i+1]); if not id or id>MAX_BUILD_ID then return nil,"Invalid item in legacy build code." end
+    if id>0 then build.items[slots[i]]=id end
+  end
+  return build
+end
+
+function AshenBuilds:ImportLegacyBuild(code,onImported)
+  if type(code)~="string" or string.sub(code,1,4)~="AB1." then AB_Print("Invalid legacy build code."); return false end
+  return self:ImportBuild(code,onImported)
 end
 
 
@@ -803,6 +874,7 @@ function AB:GetDerivedStats(build)
 
   -- Defense above the level cap adds 0.04% dodge, parry and block per point.
   out.defense=maxSkill+(gear.defense or 0)+(m.defense or 0)
+  out.critTakenReduction=math.max(0,(gear.critTakenReduction or 0)+(m.critTakenReduction or 0))
   local defBonus=(out.defense-maxSkill)*0.04
   out.miss=math.max(0,5+defBonus)
   local parryMain=self:GetItem(build.items.MAINHAND or 0)

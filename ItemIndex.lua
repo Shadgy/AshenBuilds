@@ -3,8 +3,9 @@ local AB = AshenBuilds
 -- Search index for the item database. Everything the filters need is computed once
 -- (lower-case names, source categories, hidden flags) and items are pre-bucketed by
 -- planner slot and pre-sorted by item level, so a filter pass only walks one slot's
--- items and allocates nothing per item. The index builds in small chunks after login
--- so opening the database never has to wait for it.
+-- items. Cheap indexed filters run before acquisition-route calculations.
+-- The index builds in small chunks after login so opening the database never
+-- has to wait for it.
 
 local IDX = {pos = 0, done = false}
 AB.ItemIndex = IDX
@@ -117,6 +118,7 @@ local function Reset()
   IDX.id, IDX.name, IDX.q, IDX.req, IDX.ilvl, IDX.hidden, IDX.class, IDX.src, IDX.srcText, IDX.stats = {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
   IDX.use, IDX.armor, IDX.wtype, IDX.slot = {}, {}, {}, {}
   IDX.markedHidden={}
+  IDX.race={}
   IDX.bySlot = {ALL = {}}
   local i; for i = 1, table.getn(AB.SLOTS) do IDX.bySlot[AB.SLOTS[i]] = {} end
 end
@@ -146,6 +148,7 @@ function IDX:Step(budget)
         mask, text = SourceInfo(id, r)
         self.id[n] = id; self.name[n] = string.lower(r[1] or ""); self.q[n] = r[2] or 1; self.req[n] = r[4] or 0; self.ilvl[n] = r[5] or 0
         self.hidden[n] = AB:IsHiddenRaw(r); self.class[n] = tonumber(r[11]) or -1; self.src[n] = mask; self.srcText[n] = text
+        self.race[n]=tonumber(r[12]) or -1
         self.markedHidden[n]=AB:IsHiddenRaw(r,true)
         self.stats[n] = AB.GetItemStatTotals and AB:GetItemStatTotals(id) or (r[19] or {})
         self.use[n] = UseLevel(id, r); self.armor[n] = (r[7] == 4 and r[8]) or 0; self.wtype[n] = (r[7] == 2 and r[18]) or ""; self.slot[n] = r[3]
@@ -208,7 +211,7 @@ local STAT_ALIASES = {strength = "str", agility = "agi", stamina = "sta", intell
   healing = "healing", spell = "spellPower", defense = "defense", dodge = "dodge", parry = "parry", block = "block", blockvalue = "blockValue", ["block value"] = "blockValue", haste = "haste", armor = "armor"}
 
 -- f = {slot, query, quality (-1 any), minIlvl, maxIlvl, source (bit, 0 any), stats = {{key,min},...},
---      maxReq (nil any), class (nil any), level (proficiency level, nil any), armor (subclass, nil any),
+--      maxReq (nil any), class/race (nil any), level (proficiency level, nil any), armor (subclass, nil any),
 --      showHidden}. Returns index positions in item-level order.
 function IDX:Query(f)
   self:Finish()
@@ -217,6 +220,7 @@ function IDX:Query(f)
   local query = f.query or ""
   local alias = STAT_ALIASES[query]
   local cbit = f.class and CLASS_BITS[f.class]
+  local rbit = f.race and AB:GetItemRaceBit(f.race)
   local quality, minI, maxI, src, maxReq = f.quality or -1, f.minIlvl, f.maxIlvl, f.source or 0, f.maxReq
   local statList = f.stats or {}
   local nStats = table.getn(statList)
@@ -233,17 +237,18 @@ function IDX:Query(f)
     elseif src > 0 and not HasBit(srcm[p], src) then ok = false
     elseif armorType and armor[p] ~= armorType then ok = false end
     if ok and cbit then mask = cls[p]; if mask >= 0 and not HasBit(mask, cbit) then ok = false end end
+    if ok and rbit then mask=AB:GetItemRaceMask(self.id[p],self.race[p]); if mask>=0 and not HasBit(mask,rbit) then ok=false end end
     if ok and cbit and not self:Proficient(p, f.class, level, slot) then ok = false end
-    if ok and f.availability and AB.GetItemAvailability then
-      local result=AB:GetItemAvailability(self.id[p],f.availability)
-      if not AB:MatchesAvailability(result,f.availability,f.showHidden) or not AB:MatchesContentInstances(result,f.availability) then ok=false end
-    end
     if ok and nStats > 0 then
       st = stats[p]
       for j = 1, nStats do v = st[statList[j][1]]; if not v or v <= 0 or v < (statList[j][2] or 0) then ok = false; break end end
     end
     if ok and query ~= "" then
       ok = string.find(names[p], query, 1, true) or string.find(srcText[p], query, 1, true) or (alias and stats[p][alias] and stats[p][alias] ~= 0)
+    end
+    if ok and f.availability and AB.GetItemAvailability then
+      local result=AB:GetItemAvailability(self.id[p],f.availability)
+      if not AB:MatchesAvailability(result,f.availability,f.showHidden) or not AB:MatchesContentInstances(result,f.availability) then ok=false end
     end
     if ok then table.insert(out, p) end
   end

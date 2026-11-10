@@ -64,7 +64,7 @@ AshenBuildsEnchants = {
   [151024]={n="Pristine Quartz", slots={NECK=true,FINGER1=true,FINGER2=true}, minIlvl=25, stats={sta=3}, spell=51024, tip="Permanently enchant a ring or amulet to increase Stamina by 3. Only usable on items level 25 and above."},
   [149013]={n="Crystalized Topaz Gemstone", slots={NECK=true,FINGER1=true,FINGER2=true}, minIlvl=25, stats={arcanePower=9}, spell=49013, tip="Permanently enchant a ring or amulet to increase Arcane Damage by 9. Only usable on items level 25 and above."},
   [146101]={n="Ancient Dwarven Gemstone", slots={NECK=true,FINGER1=true,FINGER2=true}, minIlvl=25, stats={healing=3,spellPower=3}, spell=46101, tip="Permanently enchant a ring or amulet to increase Spell Power by 3. Only usable on items level 25 and above."},
-  [157185]={n="Sigil of Resilience", slots={SHOULDER=true}, stats={}, spell=57185, tip="Permanently reduces your chance to be critically hit by melee and ranged attacks by -3% to a shoulder slot item."},
+  [157185]={n="Sigil of Resilience", slots={SHOULDER=true}, stats={critTakenReduction=3}, spell=57185, tip="Permanently reduces your chance to be critically hit by melee and ranged attacks by -3% to a shoulder slot item."},
   [157157]={n="Sigil of Penetration", slots={SHOULDER=true}, stats={armorPen=40}, spell=57157, tip="Permanently adds -40 armor penetration to a shoulder slot item."},
   [157156]={n="Sigil of Quickness", slots={SHOULDER=true}, stats={haste=2}, spell=57156, tip="Permanently adds 2% haste to a shoulder slot item."},
   [157155]={n="Sigil of Leeching", slots={SHOULDER=true}, stats={leech=2}, spell=57155, tip="Permanently adds 2% vampirism to a shoulder slot item."},

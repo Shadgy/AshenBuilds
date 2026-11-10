@@ -132,6 +132,8 @@ def parse_stats(desc):
     if v: add("block", v)
     v = take(r"defense (?:skill |value )?(?:of the wearer )?(?:is increased |of an item[^\d]*)?by " + N) or take(N + r" defense")
     if v: add("defense", v)
+    v = take(r"reduces your chance to be critically hit by melee and ranged attacks by " + N + "%")
+    if v: add("critTakenReduction", v)
     v = take(r"armor value of an item[^\d]*by " + N) or take(r"armor by " + N) or take(N + r" (?:additional )?(?:points of )?armor")
     if v: add("armor", v)
     v = take(N + r"% dodge") or take(N + r"% chance to dodge") or take(r"dodge chance by " + N)

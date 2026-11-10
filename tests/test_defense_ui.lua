@@ -1,6 +1,6 @@
 local A=AshenBuilds
 check("defense details fit both coverage conventions",A.defenseBrowser and A.defenseBrowser:GetWidth()==540 and A.defenseBrowser:GetHeight()==520)
-check("content settings are shared by both pickers",table.getn(A.availabilityButtons)==2 and A.availabilityBrowser)
+check("content settings are shared by both pickers and enchant database",table.getn(A.availabilityButtons)==3 and A.availabilityBrowser)
 local b=A.NewBuildData("Defense display"); b.class="Warrior"; b.race="Human"; b.level=60; b.items={OFFHAND=19349}; b.enchants={}; A.EnsureTalents(b); A.current=b
 A.defenseBrowser:Show(); A:RefreshDefenseBrowser()
 check("warrior sees Shield Block control",A.defenseBrowser.shieldBlock:IsShown() and not A.defenseBrowser.holyShield:IsShown())

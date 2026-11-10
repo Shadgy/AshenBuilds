@@ -124,6 +124,7 @@ local EFFECTS={
     [51644]={scope="Axes only (Master of Arms)",scoped={meleeCrit={1,2,3,4,5}},note="Master of Arms is weapon-specific; not added to generic crit."},
   },
   PALADIN={
+    [20262]={stats={strPct={2,4,6,8,10}}}, -- Divine Strength
     [20257]={stats={intPct={2,4,6,8,10}}}, -- Divine Intellect
     [20189]={stats={hit={1,2,3},spellHit={1,2,3}}}, -- Precision
     [20143]={stats={armorPct={2,4,6,8,10}}}, -- Toughness
@@ -345,8 +346,8 @@ function AB:DecodeBuild(code)
     if build then ensureTalents(build) end
     return build,err
   end
-  local tokens={}; local token
-  for token in string.gfind(code,"[^%.]+") do table.insert(tokens,token) end
+  local tokens=self:SplitBuildCode(code)
+  if not tokens then return nil,"Invalid build code fields." end
   local n=table.getn(tokens)
   if n<8 then return nil,"Incomplete build code." end
   local build,err=baseDecode(self,"AB2."..table.concat(tokens,".",2,n-3))

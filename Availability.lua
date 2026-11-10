@@ -15,9 +15,18 @@ local phases = {
   ["Ruins of Ahn'Qiraj"]=4,["Ahn'Qiraj"]=4,["Temple of Ahn'Qiraj"]=4,
   ["Timbermaw Hold"]=5,["Naxxramas"]=6,["The Upper Necropolis"]=6,["Tower of Karazhan"]=7,
 }
+-- AtlasLoot records the shared instance, not separate Scarlet Monastery wings.
+-- Keep old selections readable while offering only the supported parent filter.
+local instanceAliases={
+  ["Scarlet Monastery Graveyard"]="Scarlet Monastery",["Scarlet Monastery Library"]="Scarlet Monastery",
+  ["Scarlet Monastery Armory"]="Scarlet Monastery",["Scarlet Monastery Cathedral"]="Scarlet Monastery",
+  ["Scarlet Monastery (Graveyard)"]="Scarlet Monastery",["Scarlet Monastery (Library)"]="Scarlet Monastery",
+  ["Scarlet Monastery (Armory)"]="Scarlet Monastery",["Scarlet Monastery (Cathedral)"]="Scarlet Monastery",
+}
+local function InstanceName(name) return instanceAliases[name] or name end
+AB.NormalizeContentInstance=InstanceName
 local baseDungeons={"Ragefire Chasm","Wailing Caverns","The Deadmines","Shadowfang Keep","Blackfathom Deeps",
-  "The Stockade","Gnomeregan","Razorfen Kraul","Scarlet Monastery","Scarlet Monastery Graveyard",
-  "Scarlet Monastery Library","Scarlet Monastery Armory","Scarlet Monastery Cathedral","Razorfen Downs",
+  "The Stockade","Gnomeregan","Razorfen Kraul","Scarlet Monastery","Razorfen Downs",
   "Uldaman","Zul'Farrak","Maraudon","The Temple of Atal'Hakkar","Blackrock Depths","Blackrock Spire",
   "Dire Maul","Stratholme","Scholomance","Karazhan Crypt"}
 local i; for i=1,table.getn(baseDungeons) do phases[baseDungeons[i]]=0 end
@@ -40,7 +49,7 @@ function AB:GetAvailabilitySettings()
     local seen={}; local i,name,location
     for i=1,table.getn(self.CONTENT_INSTANCES) do seen[self.CONTENT_INSTANCES[i]]=true end
     for _,location in pairs(AshenBuildsContentSources.locations or {}) do
-      name=location.name
+      name=InstanceName(location.name)
       if location.phase~=nil and (location.type==1 or location.type==2) then
         phases[name]=location.phase
         if not seen[name] then table.insert(self.CONTENT_INSTANCES,name); seen[name]=true end
@@ -59,6 +68,11 @@ function AB:GetAvailabilitySettings()
   if s.atlasPolicy~=1 then s.includeUnknown=false; s.atlasPolicy=1 end
   if s.includeUnknown==nil then s.includeUnknown=false end
   if type(s.instances)~="table" then s.instances={} end
+  local alias,canonical
+  for alias,canonical in pairs(instanceAliases) do
+    if s.instances[alias] then s.instances[canonical]=true end
+    s.instances[alias]=nil
+  end
   return s
 end
 
@@ -67,7 +81,7 @@ local function Result(status,reason,instances,extra)
 end
 local function CurrentPhase(settings) return tonumber(settings.phase) or 2 end
 local function Override(o,settings)
-  local locations={}; if o.instance then locations[o.instance]=true end
+  local locations={}; if o.instance then locations[InstanceName(o.instance)]=true end
   if o.status=="unobtainable" then return Result("unobtainable",o.reason or "Not obtainable in this server profile",locations) end
   local phase=tonumber(o.phase)
   if phase then return Result(phase>CurrentPhase(settings) and "future" or "available",
@@ -82,7 +96,7 @@ local function FullSources(record,settings)
   local instances={}; local data=AshenBuildsContentSources; local i,location
   for i=1,table.getn(record.z or {}) do
     location=data.locations and data.locations[record.z[i]]
-    if location then instances[location.name]=true end
+    if location then instances[InstanceName(location.name)]=true end
   end
   local phase=CurrentPhase(settings)
   if record.p and record.p<=phase then
@@ -108,9 +122,9 @@ function AB:GetCatalogItemAvailability(id,settings)
   local instances,unknown,known,earliest={},false,false,nil
   if not sources or table.getn(sources)==0 then return Result("unknown","Acquisition sources are not verified",instances,{incomplete=true}) end
   for j=1,table.getn(sources) do
-    local source=sources[j]; local zone=(source[1]=="drop" and source[4]) or nil
+    local source=sources[j]; local zone=InstanceName((source[1]=="drop" and source[4]) or nil)
     local phase=zone and phases[zone]
-    if zone and zone~="" then instances[zone]=true end
+    if zone and zone~="" then instances[InstanceName(zone)]=true end
     if phase then
       known=true; if not earliest or phase<earliest then earliest=phase end
     else
@@ -147,7 +161,7 @@ local function AtlasAvailability(record,full,settings,isEnchant)
       if not unresolvedMinimum or bound<unresolvedMinimum then unresolvedMinimum=bound end
     end
     if phase and (not earliest or phase<earliest) then earliest=phase end
-    location=route.instance
+    location=InstanceName(route.instance)
     if location then
       instances[location]=true
       if phase and (not instancePhases[location] or phase<instancePhases[location]) then instancePhases[location]=phase end
@@ -157,7 +171,7 @@ local function AtlasAvailability(record,full,settings,isEnchant)
     local locations=AshenBuildsContentSources and AshenBuildsContentSources.locations or {}
     for i=1,table.getn(full.z or {}) do
       location=locations[full.z[i]]
-      if location and location.phase~=nil then instances[location.name]=true end
+      if location and location.phase~=nil then instances[InstanceName(location.name)]=true end
     end
   end
   local extra={verified=true,verification="AtlasLoot",atlasRecord=record,sourceRecord=full,
@@ -234,8 +248,9 @@ function AB:MatchesContentInstances(result,settings)
   if type(settings)~="table" then settings=self:GetAvailabilitySettings() end
   local selection=settings.instances or {}
   if not next(selection) then return true end
-  local zone,eligible=nil,false
-  for zone in pairs(selection) do
+  local zone,selected,eligible=nil,nil,false
+  for selected in pairs(selection) do
+    zone=InstanceName(selected)
     local phase=phases[zone]
     if settings.profile=="Catalog" or settings.showFuture or not phase or phase<=CurrentPhase(settings) then
       eligible=true

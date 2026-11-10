@@ -4,7 +4,7 @@
 Based on [Tracer96/AshenBuilds](https://github.com/Tracer96/AshenBuilds), including
 the upstream fixes merged on 2026-09-30. Original addon authorship is preserved below.
 
-Version **1.0.7** is a local maintenance candidate and has not been uploaded to GitHub.
+Version **1.0.8** is a local maintenance candidate and has not been uploaded to GitHub.
 It still needs a game-client smoke check. Earlier candidates are available from
 successful GitHub Actions runs; published releases, when available, appear on this
 fork's Releases page. Extract the single `AshenBuilds` folder into `Interface\AddOns`.
@@ -14,7 +14,20 @@ See [CHANGELOG.md](CHANGELOG.md) for fork changes,
 [maintenance guide](https://github.com/Shadgy/AshenBuilds/blob/main/docs/MAINTENANCE.md)
 for testing and future updates.
 
-### What is new in 1.0.7
+### What is new in 1.0.8
+
+**Enchant Database** sits beside Item Database. Browse without equipped gear,
+filter by slot/stat and the shared Octo phase/source settings, then choose a
+compatible equipped item to apply an enchant. The existing slot picker remains.
+
+Fixes cover Divine Strength, Sigil of Resilience's received-crit reduction,
+unsaved imports, unknown IDs, per-character migration, Scarlet Monastery and
+race restrictions. Narrow item searches avoid unnecessary availability work;
+the warrior simulator respects enchant compatibility and Death Wish's armor
+penalty. See the [local client checklist](docs/TESTING-1.0.8.md).
+Weapon-skill crit remains deferred and unchanged.
+
+### Included from 1.0.7
 
 Normal suggestions now require an acquisition source recorded in the installed
 AtlasLoot snapshot and an open Octo phase. **Include unverified entries** defaults

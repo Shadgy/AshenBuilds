@@ -2,8 +2,9 @@
 
 ## Current local status — 2026-11-10
 
-Status: **w weryfikacji**. Local candidate **1.0.7** adds the user-approved AtlasLoot
-acquisition baseline, independent phase gates and verified-only defaults. Install only the local package
+Status: **w weryfikacji**. Local candidate **1.0.8** adds Enchant Database and fixes
+the audited calculation, import, character-migration, filter and simulator defects.
+It retains the AtlasLoot acquisition baseline, independent phase gates and verified-only defaults. Install only the local package
 in `D:\Games\Octo-clean\Interface\AddOns\AshenBuilds` for client validation.
 
 - The user reports testing 1.0.5 on Paladin and Warrior. The supplied Paladin
@@ -39,6 +40,25 @@ in `D:\Games\Octo-clean\Interface\AddOns\AshenBuilds` for client validation.
   Source evidence exists for 5,999 catalog items and 239 enchants, including
   439 items and 7 enchants with unresolved phase. Unlisted entries are not
   automatically declared unobtainable.
+- 1.0.8 migration uses `perCharacterMigration=1` and a separate
+  `legacySharedCurrent` for genuinely pre-character-map saves. Existing
+  `currentByChar` entries remain authoritative; a new alt never claims the last
+  active character's plan. Existing drafts already copied by an older version
+  are retained rather than guessed away. Unknown item/enchant IDs survive AB1/2/3
+  decoding; missing data remains uncounted and explicitly labelled/warned.
+- Existing Scarlet Monastery wing selections migrate to `Scarlet Monastery`,
+  matching the recorded source snapshot. Race masks come from the embedded
+  catalog, not a new live Octo verification; `ItemRaceMaskOverrides` supports
+  later documented server exceptions. Turning off both usability/class filters
+  permits deliberate browsing across these restrictions.
+- The 1.0.8 client checklist is in `TESTING-1.0.8.md`. Offline UI previews use
+  approximate fonts/geometry; they do not establish in-game rendering quality.
+- Local 1.0.8 validation passed 883 addon assertions and 50 tooling tests,
+  package validation and Lua 5.0 API lint. Independent review covered the
+  import/migration/calculation/filter changes and the new enchant page; its
+  unknown-enchant hover and multi-select findings were fixed and retested.
+  The rendered phase-2 page has no text outside the window in the geometry
+  fixture. Native Lua 5.0 compilation and real-client rendering remain unchecked.
 - Keep the current weapon-skill crit model: +0.20 percentage points per +5
   skill. Its Octo verification remains unresolved and the user explicitly
   deferred that check. Do not mark the coefficient as Octo-verified.
