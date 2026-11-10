@@ -100,4 +100,3 @@ check("unknown reagent cannot bypass a necessary future recipe",necessary.status
 s.phase=4
 check("mapped AQ recipe opens with selected phase",A:GetEnchantAvailability(48).status=="available")
 s.phase=2
-
