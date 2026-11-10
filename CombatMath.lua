@@ -63,6 +63,40 @@ end
 
 local function Percent(value) return math.max(0,math.min(100,value or 0)) end
 
+-- Octo developer formula: miss = 5 - 0.2 * (weapon skill - target Defense).
+-- Keep flat Hit separate: the simulator must not count skill a second time.
+function AB:CalculateMeleeMiss(weaponSkill,targetDefense,hit,dualWield)
+  local miss=5+((targetDefense or 0)-(weaponSkill or 0))*0.2
+  if dualWield then miss=miss*0.8+20 end
+  return Percent(miss-(hit or 0))
+end
+
+-- The inherited 1.12 sheet model also grants 0.04% crit per bonus skill.
+function AB:CalculateMeleeCrit(baseCrit,weaponSkill,level,targetLevel)
+  return math.max(0,(baseCrit or 0)+(level-targetLevel)+(weaponSkill-level*5)*0.04)
+end
+
+function AB:GetMeleeHitPreview(stats,build)
+  if not stats.mainSkill then return nil end
+  local form=self.GetBuildForm and self:GetBuildForm(build)
+  if build.class=="Druid" and (form=="cat" or form=="bear" or form=="direbear") then return nil end
+  local level=stats.base.level
+  local targetLevel=self:GetDefenseSettings(build).targetLevel
+  local targetDefense=targetLevel*5
+  local dualWield=stats.offSkill and true or false
+  local function Hand(skill,offHandHit)
+    if not skill then return nil end
+    local bonus=(skill.total-level*5)*0.2
+    local hit=stats.hit+(offHandHit or 0)
+    return {skill=skill.total,skillHit=bonus,effectiveHit=hit+bonus,offHandHit=offHandHit or 0,
+      hitCap=self:CalculateMeleeMiss(skill.total,targetDefense,0,false),
+      miss=self:CalculateMeleeMiss(skill.total,targetDefense,hit,false),
+      whiteMiss=self:CalculateMeleeMiss(skill.total,targetDefense,hit,dualWield)}
+  end
+  return {targetLevel=targetLevel,targetDefense=targetDefense,dualWield=dualWield,
+    main=Hand(stats.mainSkill),off=Hand(stats.offSkill,stats.talentModifiers and stats.talentModifiers.offHandHit)}
+end
+
 -- The sheet includes Defense above level*5 once. Against a different-level NPC,
 -- subtract only the level/weapon-skill difference from dodge/parry/block.
 -- Reference: vmangos StatSystem.cpp and SpellCaster::RollMeleeOutcomeAgainst.
@@ -111,9 +145,30 @@ end
 
 function AB:GetCalculationWarnings(build,stats)
   local warnings={}; local i,slot,id,item
+  local className=stats.base and stats.base.className or build.class
+  local level=stats.base and stats.base.level or self.ValidLevel(build.level)
   for i=1,table.getn(self.SLOTS) do
     slot=self.SLOTS[i]; id=build.items and build.items[slot]; item=id and self:GetItem(id)
     if id and not item then table.insert(warnings,slot..": item #"..id.." is missing from the database; its stats are not counted.") end
+    if item then
+      local raw=self:GetRawItem(id)
+      local reason
+      if raw and not self:IsClassAllowedRaw(raw,className) then
+        reason="requires a different class than "..className
+      elseif item.itemClass==4 then
+        local rule=self.ArmorProficiency and self.ArmorProficiency[item.subclass]
+        if rule and (not rule[className] or level<rule[className]) then
+          reason="cannot be used by "..className.." at level "..level.." (armor or shield proficiency)"
+        end
+      elseif item.itemClass==2 then
+        local weapon=raw and raw[18]
+        local rule=self.WeaponProficiency and self.WeaponProficiency[className]
+        if weapon and weapon~="" and weapon~="Weapon" and weapon~="Fishing Pole" and rule and not rule[weapon] then
+          reason="cannot be used by "..className.." (weapon proficiency)"
+        end
+      end
+      if reason then table.insert(warnings,slot..": "..item.n.." "..reason..". Its stats remain included for preview; check the selected CLASS.") end
+    end
     if item and item.shield and not item.shieldBlockKnown then table.insert(warnings,"Native shield Block Value is unknown for "..item.n.."; the displayed total is incomplete.") end
     local enchant=build.enchants and build.enchants[slot]
     if enchant and not self:IsEnchantAllowed(slot,enchant,item) then table.insert(warnings,slot..": incompatible or orphan enchant is not counted.") end

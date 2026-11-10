@@ -1,5 +1,5 @@
 AshenBuilds = AshenBuilds or {}
-AshenBuilds.VERSION = "1.0.3"
+AshenBuilds.VERSION = "1.0.4"
 
 AshenBuilds.SLOTS = {
   "HEAD","NECK","SHOULDER","BACK","CHEST","SHIRT","TABARD","WRIST","HANDS","WAIST","LEGS","FEET",
@@ -578,8 +578,9 @@ function AB:GetWeaponInfo(build,slot)
   if not item then return nil end
   local wt=item.weaponType
   if item.itemClass==2 and item.subclass==20 then return {name=item.n,type="FishingPole"} end
-  if item.twoHand and wt then wt="TwoHand"..wt end
-  return {name=item.n,type=wt or (item.shield and "Shield" or "Unknown")}
+  local twoHand=item.twoHand or item.slot=="TWOHAND" or wt=="Staff" or wt=="Polearm"
+  if twoHand and (wt=="Sword" or wt=="Mace" or wt=="Axe") then wt="TwoHand"..wt end
+  return {name=item.n,type=wt or (item.shield and "Shield" or "Unknown"),twoHand=twoHand and true or false}
 end
 
 local SKILL_KEYS={Sword="swordSkill",TwoHandSword="twoHandSwordSkill",Axe="axeSkill",TwoHandAxe="twoHandAxeSkill",Dagger="daggerSkill",Mace="maceSkill",TwoHandMace="twoHandMaceSkill",Fist="fistSkill",Polearm="polearmSkill",Staff="staffSkill",Bow="bowSkill",Gun="gunSkill",Crossbow="crossbowSkill",Thrown="thrownSkill"}
@@ -634,7 +635,7 @@ function AB:GetWeaponSkill(build,slot,gear,talents)
   local talent=0
   if talents then
     talent=talents[SKILL_FAMILY[w.type] or SKILL_KEYS[w.type] or ""] or 0
-    if string.find(w.type,"TwoHand",1,true) then talent=talent+(talents.twoHandSkill or 0) end
+    if w.twoHand then talent=talent+(talents.twoHandSkill or 0) end
   end
   local quest=self:GetWeaponSkillQuestBonus(build,w.type)
   return {type=w.type,base=base,racial=racial,gear=gearBonus,talent=talent,quest=quest,total=base+racial+gearBonus+talent+quest}
@@ -717,6 +718,8 @@ function AB:GetDerivedStats(build)
   out.hit=(gear.hit or 0)+(m.hit or 0)
   out.rangedHit=out.hit+(gear.rangedHit or 0)+(m.rangedHit or 0)
   out.spellHit=(gear.spellHit or 0)+(m.spellHit or 0)
+  out.meleeHitPreview=self:GetMeleeHitPreview(out,build)
+  out.meleeHit=out.meleeHitPreview and out.meleeHitPreview.main.effectiveHit or out.hit
 
   -- Defense above the level cap adds 0.04% dodge, parry and block per point.
   out.defense=maxSkill+(gear.defense or 0)+(m.defense or 0)
@@ -725,7 +728,8 @@ function AB:GetDerivedStats(build)
   local parryMain=self:GetItem(build.items.MAINHAND or 0)
   local parryOff=self:GetItem(build.items.OFFHAND or 0)
   local parryWeapon=(parryMain and parryMain.itemClass==2) or (parryOff and parryOff.itemClass==2)
-  out.canParry=(data.canParry and data.canParry[className] and not feral and parryWeapon) and true or false
+  out.classCanParry=(data.canParry and data.canParry[className]) and true or false
+  out.canParry=(out.classCanParry and not feral and parryWeapon) and true or false
   out.dodgePerAgility=LevelRate(data.dodgePerAgi and data.dodgePerAgi[className],level)
   out.dodge=baseCrit+out.agi/LevelRate(data.dodgePerAgi and data.dodgePerAgi[className],level)+defBonus+(gear.dodge or 0)+(m.dodge or 0)+(racial.dodge or 0)
   if feral then out.dodge=out.dodge+(m.feralDodge or 0) end
@@ -734,7 +738,8 @@ function AB:GetDerivedStats(build)
   if out.canParry then out.parry=math.max(0,out.parry+5+defBonus) else out.parry=0 end
   local shield=self:GetItem(build.items.OFFHAND or 0)
   out.block=0; out.blockValue=0
-  out.canBlock=(shield and shield.shield and data.canBlock and data.canBlock[className] and not feral) and true or false
+  out.classCanBlock=(data.canBlock and data.canBlock[className]) and true or false
+  out.canBlock=(shield and shield.shield and out.classCanBlock and not feral) and true or false
   if shield and shield.shield and data.canBlock and data.canBlock[className] then
     out.block=math.max(0,5+defBonus+(gear.block or 0)+(m.block or 0))
     out.blockValue=math.floor(Pct((gear.blockValue or 0)+out.str/20-1,m.blockValuePct))
@@ -789,6 +794,8 @@ function AB:GetDerivedStats(build)
   Explain("meleeCrit",{{"Class base",baseCrit,true},{"Agility "..out.agi,agiCrit,true},{"Gear and enchants",gear.crit or 0,true},{"Talents",(m.meleeCrit or 0)+(feral and m.feralCrit or 0),true},{"Weapon skill",SkillCrit(out.mainSkill),true}})
   Explain("rangedCrit",{{"Class base",baseCrit,true},{"Agility "..out.agi,agiCrit,true},{"Gear and enchants",(gear.crit or 0)+(gear.rangedCrit or 0),true},{"Talents",m.rangedCrit or 0,true},{"Weapon skill",SkillCrit(out.rangedSkill),true}})
   Explain("hit",{{"Gear and enchants",gear.hit or 0,true},{"Talents",m.hit or 0,true}})
+  local skillHit=out.meleeHitPreview and out.meleeHitPreview.main.skillHit or 0
+  Explain("meleeHit",{{"Gear and enchants",gear.hit or 0,true},{"Talents",m.hit or 0,true},{"Weapon skill (0.2% per point above level x5)",skillHit,true}})
   Explain("rangedHit",{{"Gear and enchants",(gear.hit or 0)+(gear.rangedHit or 0),true},{"Talents",(m.hit or 0)+(m.rangedHit or 0),true}})
   if sc then Explain("spellCrit",{{"Class base",sc[1],true},{"Intellect "..out.int,out.int/(sc[2]+sc[3]*level),true},{"Gear and enchants",gear.spellCrit or 0,true},{"Talents",m.spellCrit or 0,true}})
   else Explain("spellCrit",{{"Gear and enchants",gear.spellCrit or 0,true},{"Talents",m.spellCrit or 0,true}}) end

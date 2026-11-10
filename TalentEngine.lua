@@ -113,6 +113,7 @@ local EFFECTS={
     [16462]={stats={parry={1,2,3,4,5}}}, -- Deflection
     [12163]={stats={twoHandSkill={1,2,3}},note="Two-handed damage bonus is separate from weapon skill."},
     [12320]={stats={meleeCrit={1,2,3,4,5}}}, -- Cruelty
+    [23584]={stats={offHandHit={2,4,6,8,10}}}, -- Dual Wield Specialization: off-hand only
     [12298]={stats={block={1,2,3,4,5}}}, -- Shield Specialization
     [12297]={stats={defense={7,14,20}}}, -- Anticipation
     [12299]={stats={armorPct={2,4,6,8,10},blockValuePct={3,6,9,12,15}}}, -- Toughness

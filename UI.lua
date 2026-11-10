@@ -156,7 +156,8 @@ function AB:ShowWeaponSkillQuestTooltip(control)
   GameTooltip:AddLine("Selected family: "..WeaponQuestFamilyLabel(self.weaponSkillQuestFamily),1,1,1)
   GameTooltip:AddLine("Each family requires its own mastery book. Sword, axe and mace books cover both one- and two-handed weapons.",.8,.8,.8,true)
   GameTooltip:AddLine("Books require level 60; the prerequisite quest chain starts at level 55.",.8,.8,.8,true)
-  GameTooltip:AddLine("The bonus applies to matching planned weapons alongside racial, gear and talent skill. It does not grant flat hit chance or skill to shields, wands or feral attacks.",.8,.8,.8,true)
+  GameTooltip:AddLine("For matching melee weapons, +5 skill reduces base miss by 1 percentage point. Melee Hit includes this skill contribution; hover it for miss and hit-cap details.",.8,.8,.8,true)
+  GameTooltip:AddLine("Skill stacks with racial, gear and talent bonuses. It can also affect physical crit, but does not grant Spell Hit or skill to shields, wands or feral attacks.",.8,.8,.8,true)
   GameTooltip:AddLine("Book selections are saved locally with the build. Shared build codes require selecting the books again after import.",.8,.8,.8,true)
   GameTooltip:Show()
 end
@@ -244,6 +245,18 @@ function AB:CreateUI()
     local pos=cardPositions[i]; local c=CreateFrame("Frame",nil,cards); c:SetWidth(pos[3]); c:SetHeight(pos[4]); c:SetPoint("TOPLEFT",stats,"TOPLEFT",pos[1],pos[2]);
     self:StylePanel(c,"card"); self.statsColumns[i]=c
   end
+  self.meleeTargetDrop=self:CreateDropdown(self.statsColumns[3],72,{
+    items=function() return {{value=60,text="Level 60"},{value=61,text="Level 61"},{value=62,text="Level 62"},{value=63,text="Level 63 (boss)"}} end,
+    getText=function() return "vs "..AB:GetDefenseSettings().targetLevel end,
+    isChecked=function(v) return AB:GetDefenseSettings().targetLevel==v end,
+    onSelect=function(v) AB:SetDefenseSetting("targetLevel",v); AB:RefreshUI() end})
+  self.meleeTargetDrop:SetHeight(18); self.meleeTargetDrop:SetPoint("TOPRIGHT",self.statsColumns[3],"TOPRIGHT",-8,-4)
+  self.defenseClassNote=self.statsColumns[5]:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+  self.defenseClassNote:SetPoint("TOPLEFT",self.statsColumns[5],"TOPLEFT",14,-120); self.defenseClassNote:SetWidth(217); self.defenseClassNote:SetHeight(14); self.defenseClassNote:SetJustifyH("LEFT")
+  local notes=MakeButton(self.statsColumns[2],"Calculation notes",215,16)
+  notes:SetPoint("BOTTOMLEFT",self.statsColumns[2],"BOTTOMLEFT",14,6)
+  notes:SetScript("OnEnter",function() AB:ShowCalculationWarnings(this) end); notes:SetScript("OnClick",function() AB:ShowCalculationWarnings(this) end)
+  notes:SetScript("OnLeave",function() GameTooltip:Hide() end); notes:Hide(); self.calculationNotesButton=notes
   self:CreateModelPreview(stats)
 
   self:CreateGearSlot(page,"MAINHAND",0,0,"left"); self.slotButtons.MAINHAND:ClearAllPoints(); self.slotButtons.MAINHAND:SetPoint("TOPLEFT",stats,"BOTTOMLEFT",17,-10)
@@ -581,7 +594,7 @@ function AB:ShowStatTooltip(hit)
   local d=self.lastStats; if not d or not hit.key then return end
   local lines=d.explain and d.explain[hit.key]
   local note=(hit.key=="parry" and d.parryNote) or ((hit.key=="block" or hit.key=="blockValue") and d.blockNote)
-  if (not lines or table.getn(lines)==0) and not note then return end
+  if (not lines or table.getn(lines)==0) and not note and hit.key~="meleeHit" and hit.key~="rangedHit" then return end
   GameTooltip:SetOwner(hit,"ANCHOR_RIGHT")
   GameTooltip:SetText(hit.label.."  "..(hit.value or ""),1,.82,.28)
   local i,l,v
@@ -591,6 +604,27 @@ function AB:ShowStatTooltip(hit)
     self:AddTooltipDouble(l[1],v,.85,.8,.7,1,1,1)
   end
   if note then GameTooltip:AddLine(note,.6,.6,.6,true) end
+  if hit.key=="meleeHit" then
+    local preview=d.meleeHitPreview
+    if preview then
+      GameTooltip:AddLine("Melee bonus relative to level x5 weapon skill; target level "..preview.targetLevel.." ("..preview.targetDefense.." Defense).",.8,.8,.8,true)
+      self:AddTooltipDouble("MH special / single-wield miss",string.format("%.2f%%",preview.main.miss),.85,.8,.7,1,1,1)
+      self:AddTooltipDouble("Flat Hit needed for MH cap",string.format("%.2f%%",preview.main.hitCap),.85,.8,.7,1,1,1)
+      if preview.dualWield then
+        self:AddTooltipDouble("MH dual-wield white miss",string.format("%.2f%%",preview.main.whiteMiss),.85,.8,.7,1,1,1)
+        self:AddTooltipDouble("OH special / white miss",string.format("%.2f%% / %.2f%%",preview.off.miss,preview.off.whiteMiss),.85,.8,.7,1,1,1)
+        if preview.off.offHandHit>0 then self:AddTooltipDouble("Off-hand-only talent Hit",string.format("%.2f%%",preview.off.offHandHit),.85,.8,.7,1,1,1) end
+      end
+      GameTooltip:AddLine("Miss only: dodge, parry and block are separate outcomes. The target level also applies to Defense Details.",.65,.65,.65,true)
+    else GameTooltip:AddLine("Gear and talent Hit bonus. Equip a melee weapon in humanoid form to include weapon skill.",.8,.8,.8,true) end
+  elseif hit.key=="rangedHit" then GameTooltip:AddLine("Gear and talent bonus only. The Octo melee miss model is not applied to ranged attacks.",.7,.7,.7,true) end
+  GameTooltip:Show()
+end
+
+function AB:ShowCalculationWarnings(control)
+  local d=self.lastStats; if not d then return end
+  GameTooltip:SetOwner(control,"ANCHOR_RIGHT"); GameTooltip:SetText("Calculated for "..d.base.className,1,.82,.28)
+  local i; for i=1,table.getn(d.warnings or {}) do GameTooltip:AddLine(d.warnings[i],1,.7,.3,true) end
   GameTooltip:Show()
 end
 
@@ -605,10 +639,19 @@ function AB:RefreshStats()
   local function Row(col,label,v,pct,key) self:PutStat(col,label,F(v)..(pct and "%" or ""),y,key,(v or 0)==0); y=y-step end
   step=16; y=-34; Row(1,"Strength",d.str,false,"str"); Row(1,"Agility",d.agi,false,"agi"); Row(1,"Stamina",d.sta,false,"sta"); Row(1,"Intellect",d.int,false,"int"); Row(1,"Spirit",d.spi,false,"spi")
   step=17; y=-34; Row(2,"Health",d.health,false,"health"); if d.mana and d.mana>0 then Row(2,"Mana",d.mana,false,"mana") end; Row(2,"Armor",d.armor,false,"armor"); if d.haste and d.haste>0 then Row(2,"Haste",d.haste,true,"haste") end
-  step=16; y=-34; Row(3,"Attack Power",d.attackPower,false,"attackPower"); Row(3,"Ranged AP",d.rangedAttackPower,false,"rangedAttackPower"); Row(3,"Melee Crit",d.meleeCrit,true,"meleeCrit"); Row(3,"Ranged Crit",d.rangedCrit,true,"rangedCrit"); Row(3,"Melee Hit",d.hit,true,"hit"); Row(3,"Ranged Hit",d.rangedHit,true,"rangedHit")
+  step=16; y=-34; Row(3,"Attack Power",d.attackPower,false,"attackPower"); Row(3,"Ranged AP",d.rangedAttackPower,false,"rangedAttackPower"); Row(3,"Melee Crit",d.meleeCrit,true,"meleeCrit"); Row(3,"Ranged Crit",d.rangedCrit,true,"rangedCrit"); Row(3,"Melee Hit",d.meleeHit,true,"meleeHit"); Row(3,"Ranged Hit bonus",d.rangedHit,true,"rangedHit")
   if d.mainSkill then Row(3,"MH "..d.mainSkill.type,d.mainSkill.total,false,"mainSkill") end; if d.rangedSkill then Row(3,"Ranged "..d.rangedSkill.type,d.rangedSkill.total,false,"rangedSkill") end
   step=17; y=-34; Row(4,"Spell Power",d.spellPower,false,"spellPower"); Row(4,"Healing",d.healing,false,"healing"); Row(4,"Spell Crit",d.spellCrit,true,"spellCrit"); Row(4,"Spell Hit",d.spellHit,true,"spellHit"); Row(4,"MP5 (items)",d.mp5); if d.spiritRegen and d.spiritRegen>0 then Row(4,"MP5 (spirit, not casting)",d.spiritRegen,false,"spiritRegen") end
-  step=17; y=-34; Row(5,"Defense",d.defense,false,"defense"); Row(5,"Dodge",d.dodge,true,"dodge"); Row(5,"Parry",d.parry,true,"parry"); Row(5,"Block",d.block,true,"block"); Row(5,"Block Value",d.blockValue,false,"blockValue")
+  step=17; y=-34; Row(5,"Defense",d.defense,false,"defense"); Row(5,"Dodge",d.dodge,true,"dodge")
+  local function DefenseRow(label,v,pct,key,supported)
+    if supported then Row(5,label,v,pct,key) else self:PutStat(5,label,"N/A",y,key,true); y=y-step end
+  end
+  DefenseRow("Parry",d.parry,true,"parry",d.classCanParry); DefenseRow("Block",d.block,true,"block",d.classCanBlock); DefenseRow("Block Value",d.blockValue,false,"blockValue",d.classCanBlock)
+  self.defenseClassNote:SetText((not d.classCanParry and not d.classCanBlock) and (d.base.className..": no parry or shield block") or ("Calculated for "..d.base.className))
+  self.defenseClassNote:SetTextColor(1,.72,.35)
+  local n=table.getn(d.warnings or {})
+  if n>0 then self.calculationNotesButton:SetText("Calculation notes ("..n..")"); self.calculationNotesButton:Show() else self.calculationNotesButton:Hide() end
+  self.meleeTargetDrop:Refresh()
   step=17; y=-34; Row(6,"Fire",d.resistances.fire); Row(6,"Frost",d.resistances.frost); Row(6,"Nature",d.resistances.nature); Row(6,"Shadow",d.resistances.shadow); Row(6,"Arcane",d.resistances.arcane)
   if self.defenseBrowser and self.defenseBrowser:IsShown() then self:RefreshDefenseBrowser(d) end
 end

@@ -1,13 +1,25 @@
-# Weapon skill quest preview (1.0.3)
+# Weapon skill quest preview (local 1.0.4)
 
 At the top of the planner, select a weapon family beside **Weapon skill quest +5**
 and tick it if the planned character has completed that family's mastery. Each
 family is remembered independently. Sword, Axe and Mace mastery covers both the
 one- and two-handed skill lines; a Sword book does not improve an off-hand Axe.
 
-The bonus is a weapon-skill contribution. It stacks once with racial, gear and
-talent skill and enters the existing simulator's attack-table calculations. It is
-not a flat Hit bonus. There is no new hard cap imposed on the displayed skill total.
+The bonus stacks once with racial, gear and talent skill. The planner keeps flat
+gear/talent Hit separate internally, but displayed **Melee Hit** also includes
+0.2 percentage points per bonus weapon-skill point above level x5. Its tooltip
+shows miss and the flat Hit cap against the selected target level. A +5 melee
+mastery therefore improves the displayed bonus by 1 percentage point. With 4% flat
+Hit against a level-63 target, skill 303 to 308 reduces miss from 3.4% to 2.4%.
+Dual-wield white miss is shown separately, including off-hand-only talent Hit.
+There is no new hard cap imposed on the displayed skill total.
+
+The warrior simulator uses the same miss function and raw flat Hit, so it counts
+weapon skill once. Skill above the target's Defense continues to reduce miss.
+The inherited 1.12 sheet model also gives +0.04 percentage points of physical crit
+per bonus skill. This contribution is retained per simulated weapon; it is not
+substituted for the miss reduction. Its exact live Octo behavior remains unverified.
+Ranged Hit remains explicitly a gear/talent bonus: the cited Octo formula is for melee.
 
 Available families: swords, maces, axes, daggers, fist weapons, polearms, staves,
 thrown weapons, bows, crossbows and guns. Shields, wands, unarmed, fishing poles
@@ -24,6 +36,8 @@ Checked sources:
 - User-provided [weapon skill dataset](https://docs.google.com/spreadsheets/d/1b5wfBLYoopE7_4r2lhrJHx395K1AlZKx8qMeu821nW4/htmlview#gid=0), read through its public CSV export on 2026-11-10. It distinguishes racial skill and mastery books from flat Hit.
 - [Weapon Skill wiki](https://turtle-wow.fandom.com/wiki/Weapon_Skill), describing the mastery quest chain.
 - [Octo weapon skill guide](https://octowow.st/forum/viewtopic.php?t=1666), describing separate weapon-specific quests/books.
+- [Octo developer's melee miss formula](https://octowow.st/forum/viewtopic.php?p=6549): `miss = 5 - 0.2 * (weapon skill - target Defense)`, before flat Hit. This is the source for the 1.0.4 melee correction.
+- The inherited crit model follows [vmangos 1.12 StatSystem.cpp](https://github.com/vmangos/core/blob/development/src/game/StatSystem.cpp) and [Unit.cpp](https://github.com/vmangos/core/blob/development/src/game/Objects/Unit.cpp). These explain the 1.12 model and are not direct evidence of Octo's server code.
 - Octo item pages for [Sword mastery 70228](https://octowow.st/db/?item=70228) and [Mace mastery 70229](https://octowow.st/db/?item=70229), which list level 60; [Iron Determination 41387](https://octowow.st/db/?quest=41387) lists the level-55 prerequisite.
 - Recorded Tortoise snapshot `3ab59b9aab18`: mastery spells 57671/57673/57675 give +5 to the paired Mace/Axe/Sword skill lines; 57677 through 57691 cover the remaining families. Snapshot provenance is in `data-sources-1.0.2.md`. Direct Octo spell pages were not readable during this check.
 
@@ -40,5 +54,11 @@ without the matching racial changes from 300 to 305. Changing the family selecti
 alone should not change any total. Verify save/load and, for mixed dual wield,
 that each hand receives only its own marked family's bonus.
 
-Offline regressions and Lua 5.0 compilation validate the implementation; the running
-Octo client remains the final check of its observed values.
+The local 1.0.4 candidate is checked with Lua 5.1 behavioral regressions and Lua 5.0
+API lint. A Lua 5.0 compiler is not installed locally; no remote CI was started
+because publication is disabled. The running Octo client remains the final check.
+
+Also check **CLASS** before testing defense: Warlock cannot parry or use shields.
+The shield Bulwark of Unshaken Earth (33135) has a recorded native 48 Block Value;
+Paladin/Warrior totals include this base, applicable bonuses and Strength. The main
+panel marks unsupported abilities N/A and exposes incompatible equipment notes.

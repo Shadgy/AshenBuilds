@@ -4,17 +4,30 @@
 Based on [Tracer96/AshenBuilds](https://github.com/Tracer96/AshenBuilds), including
 the upstream fixes merged on 2026-09-30. Original addon authorship is preserved below.
 
-Version **1.0.3** is the current maintenance candidate. Install a ZIP from this fork's
-Releases page when one is published; candidate ZIPs are available from successful
-GitHub Actions runs. A candidate has passed offline checks but still needs a game-client
-smoke check. Extract the single `AshenBuilds` folder into `Interface\AddOns`.
+Version **1.0.4** is a local maintenance candidate and has not been uploaded to GitHub.
+It still needs a game-client smoke check. Earlier candidates are available from
+successful GitHub Actions runs; published releases, when available, appear on this
+fork's Releases page. Extract the single `AshenBuilds` folder into `Interface\AddOns`.
 
 See [CHANGELOG.md](CHANGELOG.md) for fork changes,
 [UPSTREAM.md](UPSTREAM.md) for provenance and
 [maintenance guide](https://github.com/Shadgy/AshenBuilds/blob/main/docs/MAINTENANCE.md)
 for testing and future updates.
 
-### What is new in 1.0.3
+### What is new in 1.0.4
+
+**Melee Hit** includes the matching weapon-skill contribution. Select the target level
+beside **MELEE & RANGED** and hover Melee Hit for miss and hit-cap details. At level 60,
+with 4% flat Hit against a level-63 boss, Sword skill 303 to 308 reduces miss from
+3.4% to 2.4%. The selected level also controls Defense Details. Ranged Hit is labelled
+as a gear/talent bonus; the melee model is not applied to ranged attacks.
+
+The DEFENSE panel identifies its calculation class. Class-unsupported parry/block
+show **N/A**. **Calculation notes** warns when planned equipment cannot be used by
+the selected class. Selecting Warlock with a shield does not grant block or parry;
+choose the intended tank class in **CLASS** before comparing defensive statistics.
+
+### Included from 1.0.3
 
 The top of the planner has **Weapon skill quest +5** and a weapon-family selector.
 Mark each mastery book independently; Sword, Axe and Mace each cover both one- and

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.4 — local candidate, not published
+
+- Include the matching weapon-skill contribution in displayed Melee Hit. Show target level, remaining special/single-wield and dual-wield miss, and the flat Hit cap in its tooltip; keep simulator flat Hit separate to avoid counting skill twice.
+- Share the Octo developer's melee miss formula between the planner and warrior simulator, including skill above the target's Defense.
+- Retain the inherited 1.12 weapon-skill crit contribution for each simulated weapon; the sheet's +0.2 percentage point crit from +5 skill is preserved. Octo-specific crit behavior still needs a client check.
+- Include Warrior Dual Wield Specialization's off-hand-only Hit in both the tooltip and simulator.
+- Recognize staves and polearms as two-handed for applicable weapon-skill talents while preserving their mastery families.
+- Mark class-unsupported parry/block as N/A, identify the calculation class, and expose incompatible equipment warnings on the main panel. Defense does not grant a class a new parry/block ability.
+- This candidate is local only. No GitHub push, workflow run or release was performed for 1.0.4.
+
 ## 1.0.3 — unreleased
 
 - Add **Weapon skill quest +5** at the top of the planner with an independent selection for each weapon family.

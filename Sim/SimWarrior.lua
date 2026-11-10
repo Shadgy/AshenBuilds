@@ -18,10 +18,10 @@ S.Models.Warrior = W
 
 local V, R, L, U = S.VERIFIED, S.REFERENCE, S.LIVE, S.UNKNOWN
 local M = S.Mechanic
-M("hit", R, "reference (turtle mode)", "Miss 5% + 0.2% per defense point above weapon skill, minus hit. Dual wield: x0.8 + 20%. A queued Heroic Strike uses the single-wield miss for the main hand.")
+M("hit", R, "Octo developer / reference DW", "Miss 5% + 0.2% x (target defense - weapon skill), minus hit, floored at zero. Dual wield: x0.8 + 20%. A queued Heroic Strike uses the single-wield miss for the main hand.")
 M("dodge", R, "reference", "5% + 0.1% per defense point above weapon skill.")
 M("glance", R, "reference (turtle mode)", "10% + 2% per defense point above min(skill, level x5): 40% vs level 63. Damage x uniform(0.9-0.023d, 1.0-0.017d).")
-M("crit", R, "reference", "Crit - 1% per target level above yours; +3% in Berserker Stance. White hits use one roll table; Bloodthirst/Execute roll crit separately.")
+M("crit", R, "1.12 sheet / reference target model", "Crit + 0.04% per bonus weapon skill - 1% per target level above yours; +3% in Berserker Stance. White hits use one roll table; Bloodthirst/Execute roll crit separately. Octo-specific crit behavior still needs a client check.")
 M("parry", L, "classic research", "Only when attacking from the front. Chance is a setting (default 14%); Turtle boss parry is not confirmed.")
 M("armor", R, "reference", "Armor / (Armor + 400 + 85 x your level), capped at 75%.")
 M("rage", L, "reference best estimate", "Turtle rage from damage is a fitted formula (damage/conversion x 7.5/1.075 + speed factor). Needs combat-log testing.")
@@ -314,7 +314,7 @@ function W.BuildCharacter(build, cfg)
   if not c.mh.twoHand then c.oh = WeaponFrom(AB, build, out, "OFFHAND", c) end
   local shieldItem = AB:GetItem((build.items and build.items.OFFHAND) or 0)
   c.shield = shieldItem and shieldItem.shield
-  c.offHit = 2 * (c.talents["Dual Wield Specialization"] or 0)
+  c.offHit = (out.talentModifiers and out.talentModifiers.offHandHit) or 0
 
   -- Item effects the sheet cannot show.
   c.itemProcs = {}
@@ -465,18 +465,15 @@ end
 -- Attack tables.
 ---------------------------------------------------------------------------
 local function CritChance(a, w, extra)
-  local c = a.crit + (a.char.level - a.cfg.targetLevel) + w.crit + (extra or 0)
+  local c = a.crit + w.crit + (extra or 0)
   if a.stance == "berserker" then c = c + 3 end
-  return max(c, 0)
+  return AshenBuilds:CalculateMeleeCrit(c,w.skill,a.char.level,a.cfg.targetLevel)
 end
 
 local function MissChance(a, w, dualWield)
-  local diff = a.def - w.skill
-  local miss = 5 + max(diff * 0.2, 0)
-  if dualWield then miss = miss * 0.8 + 20 end
-  miss = miss - a.hit
-  if w.offhand then miss = miss - a.char.offHit end
-  return max(miss, 0)
+  local hit=a.hit
+  if w.offhand then hit=hit+a.char.offHit end
+  return AshenBuilds:CalculateMeleeMiss(w.skill,a.def,hit,dualWield)
 end
 
 local function DodgeChance(a, w) return max(5 + (a.def - w.skill) * 0.1, 0) end

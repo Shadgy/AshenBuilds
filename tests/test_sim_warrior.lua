@@ -13,8 +13,8 @@ local function Build(race, items, talents, enchants)
   return b
 end
 
--- Pre-raid dual-wield Fury; compared against thrunk112's WarriorSim-TurtleWoW (626.9 DPS
--- with its 12 s Recklessness, 631.1 here with the same; 637.1 with the DB's 15 s).
+-- Pre-raid dual-wield Fury. The reference model gave 637.1 DPS with the DB's
+-- 15 s Recklessness; retaining each weapon's skill crit now gives 640.2 DPS.
 local fury = Build("Human",
   {HEAD = 12640, NECK = 15411, SHOULDER = 12927, BACK = 13340, CHEST = 11726, WRIST = 12936, HANDS = 14551, WAIST = 13959,
    LEGS = 15062, FEET = 14616, FINGER1 = 17713, FINGER2 = 13098, TRINKET1 = 11815, TRINKET2 = 13965, MAINHAND = 12940, OFFHAND = 15806},
@@ -37,7 +37,7 @@ local sum = S.RunBatch(W, char, cfg, 1000, 12345)
 local kb = collectgarbage("count") - before
 collectgarbage("restart")
 local mean, sd, lo, hi = S.Stats(sum)
-check(string.format("DW Fury result unchanged (%.1f, expected 637.1)", mean), math.abs(mean - 637.1) < 0.5)
+check(string.format("DW Fury retains weapon skill crit (%.1f, expected 640.2)", mean), math.abs(mean - 640.2) < 0.5)
 check(string.format("little garbage per fight (%.1f KB)", kb / 1000), kb / 1000 < 60)
 check("confidence interval is narrow", hi - lo < 10)
 local again = S.Stats(S.RunBatch(W, char, cfg, 1000, 12345))
