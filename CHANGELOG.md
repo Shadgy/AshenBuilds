@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.3 — unreleased
+
+- Add **Weapon skill quest +5** at the top of the planner with an independent selection for each weapon family.
+- Apply the matching mastery book alongside racial, gear and talent skill in character totals and the warrior simulator, including each hand separately.
+- Show the quest contribution in main-hand and ranged weapon-skill tooltips.
+- Save book selections with local builds and protect them with the existing revision-aware autosave.
+- Exclude shields, wands, fishing poles, unarmed and feral attacks; use a conservative level-60 book preview gate.
+- Preserve existing AB2/AB3 sharing compatibility. Local book selections must be selected again after importing those codes.
+
+Source scope and checks are described in `docs/WEAPON-SKILL-QUEST.md`.
+
 ## 1.0.2 — unreleased
 
 ### Correct character and defense totals

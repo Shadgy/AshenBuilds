@@ -122,6 +122,45 @@ end
 -- original 980px layout on a page centred inside it.
 local FRAME_W,PLANNER_W,FRAME_H,SET_FULL,SET_COMPACT=1060,980,900,148,40
 
+local function WeaponQuestFamilyLabel(family)
+  local i,entry
+  for i=1,table.getn(AB.WEAPON_SKILL_QUEST_TYPES or {}) do
+    entry=AB.WEAPON_SKILL_QUEST_TYPES[i]
+    if entry.value==family then return entry.text end
+  end
+  return "Choose weapon family"
+end
+
+function AB:RefreshWeaponSkillQuestControls()
+  local c=self.weaponSkillQuestCheck
+  if not c or not self.weaponSkillQuestDrop or not self.current then return end
+  if self.weaponSkillQuestBuild~=self.current then
+    self.weaponSkillQuestBuild=self.current
+    local main=self:GetWeaponInfo(self.current,"MAINHAND")
+    local ranged=self:GetWeaponInfo(self.current,"RANGED")
+    self.weaponSkillQuestFamily=self:GetWeaponSkillQuestFamily(main and main.type)
+      or self:GetWeaponSkillQuestFamily(ranged and ranged.type) or "Sword"
+  end
+  c:SetChecked(self:HasWeaponSkillQuest(self.current,self.weaponSkillQuestFamily) and 1 or nil)
+  if self:GetBuildLevel()>=60 then
+    c:Enable(); c.label:SetTextColor(1,1,1)
+  else
+    c:Disable(); c.label:SetTextColor(.55,.55,.55)
+  end
+  self.weaponSkillQuestDrop:Refresh()
+end
+
+function AB:ShowWeaponSkillQuestTooltip(control)
+  GameTooltip:SetOwner(control,"ANCHOR_RIGHT")
+  GameTooltip:SetText("Weapon skill quest +5",1,.82,.28)
+  GameTooltip:AddLine("Selected family: "..WeaponQuestFamilyLabel(self.weaponSkillQuestFamily),1,1,1)
+  GameTooltip:AddLine("Each family requires its own mastery book. Sword, axe and mace books cover both one- and two-handed weapons.",.8,.8,.8,true)
+  GameTooltip:AddLine("Books require level 60; the prerequisite quest chain starts at level 55.",.8,.8,.8,true)
+  GameTooltip:AddLine("The bonus applies to matching planned weapons alongside racial, gear and talent skill. It does not grant flat hit chance or skill to shields, wands or feral attacks.",.8,.8,.8,true)
+  GameTooltip:AddLine("Book selections are saved locally with the build. Shared build codes require selecting the books again after import.",.8,.8,.8,true)
+  GameTooltip:Show()
+end
+
 function AB:CreateUI()
   if self.frame then return end
   local f=CreateFrame("Frame","AshenBuildsFrame",UIParent); f:SetWidth(FRAME_W); f:SetHeight(FRAME_H); f:SetPoint("CENTER",UIParent,"CENTER",0,0); MakeBackdrop(f); self:SetupWindow(f,{fit=true}); f:Hide(); self.frame=f
@@ -154,6 +193,21 @@ function AB:CreateUI()
   self.specButton=Profile("BUILD",248,125,function() return AB.SPECS[AB.current.class] end,function() return AB.current.spec end,function(v) AB:SetSpec(v) end)
   local lf=f:CreateFontString(nil,"OVERLAY","GameFontNormalSmall"); lf:SetPoint("TOPLEFT",f,"TOPLEFT",380,-82); lf:SetText("LEVEL"); lf:SetTextColor(g[1],g[2],g[3])
   local level=CreateFrame("EditBox","AshenBuildsLevelBox",f,"InputBoxTemplate"); level:SetWidth(42); level:SetHeight(22); level:SetPoint("TOPLEFT",f,"TOPLEFT",380,-98); level:SetNumeric(true); level:SetMaxLetters(2); level:SetAutoFocus(false); level:SetScript("OnEnterPressed",function() AB:SetLevel(this:GetText()); this:ClearFocus() end); level:SetScript("OnEditFocusLost",function() AB:SetLevel(this:GetText()) end); self.levelBox=level
+  local quest=self:CreateCheck(f,"Weapon skill quest +5",function(v)
+    if AB:GetBuildLevel()>=60 then AB:SetWeaponSkillQuest(AB.weaponSkillQuestFamily,v)
+    else AB:RefreshWeaponSkillQuestControls() end
+  end)
+  quest:SetWidth(20); quest:SetHeight(20); quest:SetPoint("TOPLEFT",f,"TOPLEFT",446,-76); self.weaponSkillQuestCheck=quest
+  quest:SetScript("OnEnter",function() AB:ShowWeaponSkillQuestTooltip(this) end)
+  quest:SetScript("OnLeave",function() GameTooltip:Hide() end)
+  self.weaponSkillQuestDrop=self:CreateDropdown(f,170,{
+    items=function() return AB.WEAPON_SKILL_QUEST_TYPES end,
+    getText=function() return WeaponQuestFamilyLabel(AB.weaponSkillQuestFamily) end,
+    isChecked=function(v) return AB.weaponSkillQuestFamily==v end,
+    onSelect=function(v) AB.weaponSkillQuestFamily=v; AB:RefreshWeaponSkillQuestControls() end})
+  self.weaponSkillQuestDrop:SetHeight(20); self.weaponSkillQuestDrop:SetPoint("TOPLEFT",f,"TOPLEFT",655,-76)
+  self.weaponSkillQuestDrop:SetScript("OnEnter",function() AB:ShowWeaponSkillQuestTooltip(this) end)
+  self.weaponSkillQuestDrop:SetScript("OnLeave",function() GameTooltip:Hide() end)
   -- Tabs (styled and lined up on the header rule by SetupTabs).
   self.itemDatabaseButton=MakeButton(f,"ITEM DATABASE",118,26); self.itemDatabaseButton:SetScript("OnClick",function() AB:OpenItemBrowser("ALL") end)
   self.savedBuildsButton=MakeButton(f,"SAVED BUILDS",112,26); self.savedBuildsButton:SetScript("OnClick",function() AB:OpenBuildBrowser() end)
@@ -475,6 +529,7 @@ function AB:RefreshUI()
     if self.current.savedName then self.saveStateText:SetText("|cff7fd97fChanges save automatically|r") else self.saveStateText:SetText("|cffffb347Not saved yet - press Save|r") end
   end
   self.nameBox:SetText(self.current.name or "New Build"); self.classButton:SetText(self.current.class); self.raceButton:SetText(self.current.race); self.specButton:SetText(self.current.spec); self.levelBox:SetText(self:GetBuildLevel())
+  self:RefreshWeaponSkillQuestControls()
   local slot,b,id,item,c,enchant
   local muted=AB.THEME.muted
   for slot,b in pairs(self.slotButtons) do
@@ -551,7 +606,7 @@ function AB:RefreshStats()
   step=16; y=-34; Row(1,"Strength",d.str,false,"str"); Row(1,"Agility",d.agi,false,"agi"); Row(1,"Stamina",d.sta,false,"sta"); Row(1,"Intellect",d.int,false,"int"); Row(1,"Spirit",d.spi,false,"spi")
   step=17; y=-34; Row(2,"Health",d.health,false,"health"); if d.mana and d.mana>0 then Row(2,"Mana",d.mana,false,"mana") end; Row(2,"Armor",d.armor,false,"armor"); if d.haste and d.haste>0 then Row(2,"Haste",d.haste,true,"haste") end
   step=16; y=-34; Row(3,"Attack Power",d.attackPower,false,"attackPower"); Row(3,"Ranged AP",d.rangedAttackPower,false,"rangedAttackPower"); Row(3,"Melee Crit",d.meleeCrit,true,"meleeCrit"); Row(3,"Ranged Crit",d.rangedCrit,true,"rangedCrit"); Row(3,"Melee Hit",d.hit,true,"hit"); Row(3,"Ranged Hit",d.rangedHit,true,"rangedHit")
-  if d.mainSkill then Row(3,"MH "..d.mainSkill.type,d.mainSkill.total) end; if d.rangedSkill then Row(3,"Ranged "..d.rangedSkill.type,d.rangedSkill.total) end
+  if d.mainSkill then Row(3,"MH "..d.mainSkill.type,d.mainSkill.total,false,"mainSkill") end; if d.rangedSkill then Row(3,"Ranged "..d.rangedSkill.type,d.rangedSkill.total,false,"rangedSkill") end
   step=17; y=-34; Row(4,"Spell Power",d.spellPower,false,"spellPower"); Row(4,"Healing",d.healing,false,"healing"); Row(4,"Spell Crit",d.spellCrit,true,"spellCrit"); Row(4,"Spell Hit",d.spellHit,true,"spellHit"); Row(4,"MP5 (items)",d.mp5); if d.spiritRegen and d.spiritRegen>0 then Row(4,"MP5 (spirit, not casting)",d.spiritRegen,false,"spiritRegen") end
   step=17; y=-34; Row(5,"Defense",d.defense,false,"defense"); Row(5,"Dodge",d.dodge,true,"dodge"); Row(5,"Parry",d.parry,true,"parry"); Row(5,"Block",d.block,true,"block"); Row(5,"Block Value",d.blockValue,false,"blockValue")
   step=17; y=-34; Row(6,"Fire",d.resistances.fire); Row(6,"Frost",d.resistances.frost); Row(6,"Nature",d.resistances.nature); Row(6,"Shadow",d.resistances.shadow); Row(6,"Arcane",d.resistances.arcane)

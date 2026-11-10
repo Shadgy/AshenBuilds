@@ -1,5 +1,5 @@
 AshenBuilds = AshenBuilds or {}
-AshenBuilds.VERSION = "1.0.2"
+AshenBuilds.VERSION = "1.0.3"
 
 AshenBuilds.SLOTS = {
   "HEAD","NECK","SHOULDER","BACK","CHEST","SHIRT","TABARD","WRIST","HANDS","WAIST","LEGS","FEET",
@@ -399,6 +399,11 @@ end
 -- True when a build has anything worth keeping.
 function AshenBuilds:BuildHasContent(build)
   if next(build.items or {}) or next(build.enchants or {}) then return true end
+  if type(build.weaponSkillQuests)=="table" then
+    for _,enabled in pairs(build.weaponSkillQuests) do
+      if enabled==true or enabled==1 then return true end
+    end
+  end
   return next((build.talents and build.talents.points) or {}) and true or false
 end
 
@@ -572,17 +577,56 @@ function AB:GetWeaponInfo(build,slot)
   local item=self:GetItem(build.items[slot] or 0)
   if not item then return nil end
   local wt=item.weaponType
+  if item.itemClass==2 and item.subclass==20 then return {name=item.n,type="FishingPole"} end
   if item.twoHand and wt then wt="TwoHand"..wt end
   return {name=item.n,type=wt or (item.shield and "Shield" or "Unknown")}
 end
 
-local SKILL_KEYS={Sword="swordSkill",TwoHandSword="twoHandSwordSkill",Axe="axeSkill",TwoHandAxe="twoHandAxeSkill",Dagger="daggerSkill",Mace="maceSkill",TwoHandMace="twoHandMaceSkill",Fist="fistSkill",Polearm="polearmSkill",Bow="bowSkill",Gun="gunSkill",Crossbow="crossbowSkill",Thrown="thrownSkill"}
+local SKILL_KEYS={Sword="swordSkill",TwoHandSword="twoHandSwordSkill",Axe="axeSkill",TwoHandAxe="twoHandAxeSkill",Dagger="daggerSkill",Mace="maceSkill",TwoHandMace="twoHandMaceSkill",Fist="fistSkill",Polearm="polearmSkill",Staff="staffSkill",Bow="bowSkill",Gun="gunSkill",Crossbow="crossbowSkill",Thrown="thrownSkill"}
 -- Talents such as Sword Specialization name the weapon family, not the one/two-hand split.
 local SKILL_FAMILY={TwoHandSword="swordSkill",TwoHandAxe="axeSkill",TwoHandMace="maceSkill"}
 
+-- Separate mastery books grant +5 to one family; Sword/Mace/Axe each cover both hands.
+AB.WEAPON_SKILL_QUEST_TYPES={
+  {value="Sword",text="Swords"},{value="Mace",text="Maces"},{value="Axe",text="Axes"},
+  {value="Dagger",text="Daggers"},{value="Fist",text="Fist weapons"},{value="Polearm",text="Polearms"},
+  {value="Staff",text="Staves"},{value="Thrown",text="Thrown weapons"},{value="Bow",text="Bows"},
+  {value="Crossbow",text="Crossbows"},{value="Gun",text="Guns"}}
+local QUEST_FAMILY={Sword="Sword",TwoHandSword="Sword",Mace="Mace",TwoHandMace="Mace",Axe="Axe",TwoHandAxe="Axe",
+  Dagger="Dagger",Fist="Fist",Polearm="Polearm",Staff="Staff",Thrown="Thrown",Bow="Bow",Crossbow="Crossbow",Gun="Gun"}
+
+function AB:GetWeaponSkillQuestFamily(weaponType) return QUEST_FAMILY[weaponType] end
+
+function AB:HasWeaponSkillQuest(build,family)
+  build=build or self.current; family=QUEST_FAMILY[family]
+  local books=build and build.weaponSkillQuests
+  return family and type(books)=="table" and (books[family]==true or books[family]==1) and true or false
+end
+
+function AB:SetWeaponSkillQuest(family,enabled,build)
+  build=build or self.current; family=QUEST_FAMILY[family]
+  if not build or not family then return false end
+  enabled=enabled==true or enabled==1
+  if enabled and self.ValidLevel(build.level)<60 then return false end
+  if self:HasWeaponSkillQuest(build,family)==enabled then return true end
+  if type(build.weaponSkillQuests)~="table" then build.weaponSkillQuests={} end
+  build.weaponSkillQuests[family]=enabled and true or nil
+  build.updated=time()
+  if build==self.current and self.RefreshUI then self:RefreshUI() end
+  return true
+end
+
+function AB:GetWeaponSkillQuestBonus(build,weaponType)
+  build=build or self.current
+  if not build or self.ValidLevel(build.level)<60 or not self:HasWeaponSkillQuest(build,weaponType) then return 0 end
+  local form=self.GetBuildForm and self:GetBuildForm(build)
+  if build.class=="Druid" and (form=="cat" or form=="bear" or form=="direbear") then return 0 end
+  return 5
+end
+
 function AB:GetWeaponSkill(build,slot,gear,talents)
   local w=self:GetWeaponInfo(build,slot)
-  if not w or w.type=="Shield" or w.type=="Unknown" then return nil end
+  if not w or w.type=="Shield" or w.type=="Unknown" or w.type=="FishingPole" then return nil end
   local level=self.ValidLevel(build.level)
   local base=level*5
   local racial=((StatData().racialWeaponSkill or {})[NormalizeRaceKey(build.race)] or {})[w.type] or 0
@@ -592,7 +636,8 @@ function AB:GetWeaponSkill(build,slot,gear,talents)
     talent=talents[SKILL_FAMILY[w.type] or SKILL_KEYS[w.type] or ""] or 0
     if string.find(w.type,"TwoHand",1,true) then talent=talent+(talents.twoHandSkill or 0) end
   end
-  return {type=w.type,base=base,racial=racial,gear=gearBonus,talent=talent,total=base+racial+gearBonus+talent}
+  local quest=self:GetWeaponSkillQuestBonus(build,w.type)
+  return {type=w.type,base=base,racial=racial,gear=gearBonus,talent=talent,quest=quest,total=base+racial+gearBonus+talent+quest}
 end
 
 function AB:GetClassAttackPower(class,level,str,agi)
@@ -720,6 +765,10 @@ function AB:GetDerivedStats(build)
     for i=1,table.getn(lines) do if lines[i][2] and lines[i][2]~=0 then table.insert(kept,lines[i]) end end
     ex[key]=kept
   end
+  local function SkillLines(key,skill)
+    if skill then Explain(key,{{"Base (level x5)",skill.base},{"Racial",skill.racial},{"Gear",skill.gear},{"Talents",skill.talent},{"Weapon skill quest book",skill.quest}}) end
+  end
+  SkillLines("mainSkill",out.mainSkill); SkillLines("offSkill",out.offSkill); SkillLines("rangedSkill",out.rangedSkill)
   local function PrimaryLines(key)
     local lines={{"Base ("..base.raceKey.." "..className..")",base[key]},{"Gear and enchants",gear[key] or 0}}
     if m[key.."Pct"] then table.insert(lines,{"Talents +"..m[key.."Pct"].."%",out[key]-math.floor(Pct((base[key] or 0)+(gear[key] or 0),racial[key.."Pct"])+0.5)}) end

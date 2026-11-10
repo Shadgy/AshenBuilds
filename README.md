@@ -4,7 +4,7 @@
 Based on [Tracer96/AshenBuilds](https://github.com/Tracer96/AshenBuilds), including
 the upstream fixes merged on 2026-09-30. Original addon authorship is preserved below.
 
-Version **1.0.2** is the current maintenance candidate. Install a ZIP from this fork's
+Version **1.0.3** is the current maintenance candidate. Install a ZIP from this fork's
 Releases page when one is published; candidate ZIPs are available from successful
 GitHub Actions runs. A candidate has passed offline checks but still needs a game-client
 smoke check. Extract the single `AshenBuilds` folder into `Interface\AddOns`.
@@ -14,7 +14,19 @@ See [CHANGELOG.md](CHANGELOG.md) for fork changes,
 [maintenance guide](https://github.com/Shadgy/AshenBuilds/blob/main/docs/MAINTENANCE.md)
 for testing and future updates.
 
-### What is new in 1.0.2
+### What is new in 1.0.3
+
+The top of the planner has **Weapon skill quest +5** and a weapon-family selector.
+Mark each mastery book independently; Sword, Axe and Mace each cover both one- and
+two-handed weapons. The selected +5 is included in matching weapon skills and the
+warrior simulator alongside racial, equipment and talent bonuses. Hover the weapon
+skill stat to see its sources. Book preview is enabled at level 60.
+
+Selections are saved in local builds. Legacy shared codes retain their existing
+format, so select the mastery books again after importing a code. See the
+[quest skill notes](https://github.com/Shadgy/AshenBuilds/blob/main/docs/WEAPON-SKILL-QUEST.md).
+
+### Included from 1.0.2
 
 - Native shield Block Value, shield talents and permanent set statistics are included in totals.
 - **Details...** in the DEFENSE panel shows incoming miss, dodge, parry, block, avoidance,

@@ -2,7 +2,7 @@
 local A=AshenBuilds
 local watched={}
 local suspended=false
-local payloadKeys={"class","race","level","spec","form","items","enchants","talents","notes","defense","unmappedEnchants"}
+local payloadKeys={"class","race","level","spec","form","items","enchants","talents","notes","defense","unmappedEnchants","weaponSkillQuests"}
 
 local function charKey()
   return (UnitName("player") or "?").."-"..(GetRealmName and GetRealmName() or "")
@@ -177,6 +177,7 @@ function A:ImportEquipped()
   local valid=not self.ValidateTalents or self:ValidateTalents(candidate)
   if b.class~=player.class or not valid then
     if self:BuildHasContent(b) or (b.notes and b.notes~="") then preserveBeforeImport(b) end
+    if b.class~=player.class then b.weaponSkillQuests=nil end
     b.savedName=nil; b._savedRevision=nil; b._savedSignature=nil
     b.talents={points={}}; b.spec=player.spec; b.form=nil
     b.name=player.class.." equipment import"
