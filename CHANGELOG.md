@@ -1,15 +1,16 @@
 # Changelog
 
-## 1.0.8 — local candidate, not published
+## 1.0.8 — 2026-11-10
 
 - Add an Enchant Database tab beside Item Database. Browse without equipped gear; search names/effects, filter by slot/stat/content phase, page results and choose a compatible equipped target. Share source/phase controls with existing pickers; keep Unverified off by default.
 - Apply Paladin Divine Strength to Strength, Attack Power and Block Value. Count Sigil of Resilience as a separate reduction to received critical-hit chance, without increasing avoidance/coverage.
 - Protect unsaved imports (including notes-only drafts), preserve valid unknown item/enchant IDs and show explicit missing-data labels. Reject malformed codes atomically while retaining AB1/AB2/AB3 and old 17-slot compatibility.
 - Complete per-character migration once: preserve a genuine legacy shared plan separately until its matching class logs in; existing per-character plans take precedence and new alts start independently.
+- Infer old saved-name links only during genuine shared-plan migration. A new or existing unsaved draft named New Build must not attach to an identically named library entry on any login.
 - Normalize old Scarlet Monastery wing selections to the common instance. Apply catalog race restrictions to usability filters and warn about incompatible saved gear; keep explicit Octo exceptions possible without deleting saved items.
 - Filter item text/stat candidates before computing availability. Preserve result ordering, source aliases and phase checks while avoiding thousands of unnecessary availability calculations for narrow searches.
 - Make the warrior simulator reject incompatible weapon enchants and apply Death Wish's recorded armor penalty to incoming physical hits.
-- Preserve the deferred weapon-skill crit model. No publication, push, PR, remote CI or release was performed.
+- Preserve the deferred weapon-skill crit model; its Octo-specific verification remains open.
 
 ## 1.0.7 — local candidate, not published
 

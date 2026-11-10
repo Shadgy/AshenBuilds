@@ -2,10 +2,11 @@
 
 ## Current local status — 2026-11-10
 
-Status: **w weryfikacji**. Local candidate **1.0.8** adds Enchant Database and fixes
+Status: **w weryfikacji**. Release build **1.0.8** adds Enchant Database and fixes
 the audited calculation, import, character-migration, filter and simulator defects.
 It retains the AtlasLoot acquisition baseline, independent phase gates and verified-only defaults. Install only the local package
 in `D:\Games\Octo-clean\Interface\AddOns\AshenBuilds` for client validation.
+The user explicitly authorized publishing 1.0.8 on 2026-11-10 after verification.
 
 - The user reports testing 1.0.5 on Paladin and Warrior. The supplied Paladin
   screenshot is internally consistent: 350 Defense, active Block 73%, coverage
@@ -59,12 +60,20 @@ in `D:\Games\Octo-clean\Interface\AddOns\AshenBuilds` for client validation.
   unknown-enchant hover and multi-select findings were fixed and retested.
   The rendered phase-2 page has no text outside the window in the geometry
   fixture. Native Lua 5.0 compilation and real-client rendering remain unchecked.
+- Pre-release review added nine migration checks for a saved entry named
+  `New Build`, existing detached drafts and repeated login. The corrected build
+  passes 892 addon assertions and 50 tooling tests; only genuine legacy migration
+  may restore a missing saved-name link. This supersedes the 883-check candidate.
+- The installed Octo launcher 1.4.3 clones the repository's default branch and
+  updates it with Git pull; release ZIPs and latest tags do not control its
+  custom-addon installer. Publish verified builds to `main`. The URL to paste is
+  `https://github.com/Shadgy/AshenBuilds`; see `LAUNCHER.md`.
 - Keep the current weapon-skill crit model: +0.20 percentage points per +5
   skill. Its Octo verification remains unresolved and the user explicitly
   deferred that check. Do not mark the coefficient as Octo-verified.
-- Publication is not authorized. Keep changes local; do not push branches,
-  open a PR, start remote CI or create/publish a release without a later
-  explicit instruction from the user.
+- Publication of 1.0.8 and the necessary branch/main/tag/CI operations are
+  authorized by the user's later instruction. Verify checks before publishing;
+  this authorization does not establish live verification of every Octo mechanic.
 
 ## Development setup
 

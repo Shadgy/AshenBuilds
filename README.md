@@ -4,10 +4,16 @@
 Based on [Tracer96/AshenBuilds](https://github.com/Tracer96/AshenBuilds), including
 the upstream fixes merged on 2026-09-30. Original addon authorship is preserved below.
 
-Version **1.0.8** is a local maintenance candidate and has not been uploaded to GitHub.
-It still needs a game-client smoke check. Earlier candidates are available from
-successful GitHub Actions runs; published releases, when available, appear on this
-fork's Releases page. Extract the single `AshenBuilds` folder into `Interface\AddOns`.
+Version **1.0.8** is the maintained build for OctoWoW. For launcher installation,
+open **Addons → Add custom git addon**, paste **https://github.com/Shadgy/AshenBuilds**
+and select **Install**. The launcher installs this repository's default `main`
+branch and can pull later updates from the same source. Keep only one copy of
+AshenBuilds enabled; existing character/build data is stored separately in `WTF`.
+
+For manual installation, use the installation ZIP from
+[Releases](https://github.com/Shadgy/AshenBuilds/releases/latest), then extract its
+single `AshenBuilds` folder into `Interface\AddOns`. Back up existing addon and
+saved-variable files before replacing an earlier installation.
 
 See [CHANGELOG.md](CHANGELOG.md) for fork changes,
 [UPSTREAM.md](UPSTREAM.md) for provenance and

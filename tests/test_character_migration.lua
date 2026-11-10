@@ -55,4 +55,44 @@ Login("NewAfterUpgrade","Warrior","WARRIOR","Human")
 check("upgrade does not reinterpret last active character as legacy",not A.current.items.MAINHAND and not AshenBuildsDB.legacySharedCurrent)
 check("upgrade preserves existing per-character entries",AshenBuildsDB.currentByChar["Existing-Realm"].items.MAINHAND==19019)
 
+-- A default draft name is not evidence that a character loaded the library.
+AshenBuildsDB=nil
+Login("DefaultNameOwner","Warrior","WARRIOR","Human")
+A:SaveBuild("New Build",true)
+local librarySignature=A:GetBuildPayloadSignature(AshenBuildsDB.builds["New Build"])
+FireEvent("PLAYER_LOGOUT");ReloadSavedVariables()
+Login("DefaultNameAlt","Warrior","WARRIOR","Human")
+check("fresh alt does not link to an identically named empty library build",not A.current.savedName and A.current.name=="New Build")
+FireEvent("PLAYER_LOGOUT");ReloadSavedVariables()
+Login("DefaultNameAlt","Warrior","WARRIOR","Human")
+check("second login leaves the default-name draft detached",not A.current.savedName)
+A.current.items.HEAD=12640;A:RefreshUI()
+check("editing the default-name alt preserves the original library build",A:GetBuildPayloadSignature(AshenBuildsDB.builds["New Build"])==librarySignature)
+
+-- Existing 1.0.8 drafts need the same protection, not only newly created plans.
+local emptyDraft=A.NewBuildData("New Build")
+emptyDraft.class="Warrior";emptyDraft.race="Human"
+AshenBuildsDB={builds={["New Build"]=A:DeepCopy(emptyDraft)},settings={},perCharacterMigration=1,
+  current=A:DeepCopy(emptyDraft),currentByChar={["ExistingEmptyDraft-Realm"]=emptyDraft}}
+Login("ExistingEmptyDraft","Warrior","WARRIOR","Human")
+check("existing unsaved empty draft is not linked by name",not A.current.savedName)
+FireEvent("PLAYER_LOGOUT");ReloadSavedVariables()
+Login("ExistingEmptyDraft","Warrior","WARRIOR","Human")
+check("existing empty draft stays detached after serialization and login",not A.current.savedName)
+A.current.items.MAINHAND=19019;A:RefreshUI()
+check("existing draft edits cannot overwrite an equal-named library entry",not AshenBuildsDB.builds["New Build"].items.MAINHAND)
+A:SaveBuild("Explicit saved draft",true)
+check("explicit Save still creates the intended saved link",A.current.savedName=="Explicit saved draft" and AshenBuildsDB.builds["Explicit saved draft"].items.MAINHAND==19019)
+
+-- Genuine pre-character-map saves still recover their old name-based link.
+local namedLegacy=A.NewBuildData("Legacy named build")
+namedLegacy.class="Warrior";namedLegacy.race="Human";namedLegacy.items={HEAD=12640}
+AshenBuildsDB={current=namedLegacy,builds={["Legacy named build"]=A:DeepCopy(namedLegacy)},settings={}}
+Login("LegacyOtherClass","Mage","MAGE","Gnome")
+FireEvent("PLAYER_LOGOUT");ReloadSavedVariables()
+Login("LegacyNamedOwner","Warrior","WARRIOR","Human")
+check("genuine shared legacy migration restores a matching saved name",A.current.savedName=="Legacy named build")
+A.current.items.MAINHAND=19019;A:RefreshUI()
+check("migrated legacy link retains intentional autosave",AshenBuildsDB.builds["Legacy named build"].items.MAINHAND==19019)
+
 UnitName=oldName;UnitClass=oldClass;UnitRace=oldRace;AshenBuildsDB=oldDB;A.current=oldCurrent

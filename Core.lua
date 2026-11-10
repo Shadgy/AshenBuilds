@@ -147,19 +147,22 @@ function AshenBuilds:InitializeDB()
   AshenBuildsDB.currentByChar = AshenBuildsDB.currentByChar or {}
   local key = AB_CharKey()
   local current = AshenBuildsDB.currentByChar[key]
+  local claimedLegacy = false
   if not current then
     -- Saves from before per-character planners had one shared build: the first
     -- character of that class to log in keeps it, everyone else starts fresh.
     local shared = AshenBuildsDB.legacySharedCurrent
     if shared and not AshenBuildsDB.sharedCurrentClaimed and shared.class == AB_PlayerClass() then
-      current = shared; AshenBuildsDB.sharedCurrentClaimed = true; AshenBuildsDB.legacySharedCurrent = nil
+      current = shared; claimedLegacy = true; AshenBuildsDB.sharedCurrentClaimed = true; AshenBuildsDB.legacySharedCurrent = nil
     else current = AB_NewBuild("New Build") end
     AshenBuildsDB.currentByChar[key] = current
   end
   AshenBuildsDB.current = current
   self.current = AshenBuildsDB.current
-  -- Builds from before rename support: link the planner to the saved build with its name.
-  if not self.current.savedName and self.current.name and AshenBuildsDB.builds[self.current.name] then self.current.savedName = self.current.name end
+  -- Only a genuinely shared legacy plan may recover its old name-based link.
+  -- A current per-character draft can deliberately have the same name as a saved
+  -- build; inferring a link on any login could make its edits overwrite that build.
+  if claimedLegacy and not self.current.savedName and self.current.name and AshenBuildsDB.builds[self.current.name] then self.current.savedName = self.current.name end
   self:MigrateBuild(self.current)
   local name, build
   for name, build in pairs(AshenBuildsDB.builds) do self:MigrateBuild(build) end
