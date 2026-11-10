@@ -4,7 +4,7 @@
 Based on [Tracer96/AshenBuilds](https://github.com/Tracer96/AshenBuilds), including
 the upstream fixes merged on 2026-09-30. Original addon authorship is preserved below.
 
-Version **1.0.6** is a local maintenance candidate and has not been uploaded to GitHub.
+Version **1.0.7** is a local maintenance candidate and has not been uploaded to GitHub.
 It still needs a game-client smoke check. Earlier candidates are available from
 successful GitHub Actions runs; published releases, when available, appear on this
 fork's Releases page. Extract the single `AshenBuilds` folder into `Interface\AddOns`.
@@ -14,7 +14,26 @@ See [CHANGELOG.md](CHANGELOG.md) for fork changes,
 [maintenance guide](https://github.com/Shadgy/AshenBuilds/blob/main/docs/MAINTENANCE.md)
 for testing and future updates.
 
-### What is new in 1.0.6
+### What is new in 1.0.7
+
+Normal suggestions now require an acquisition source recorded in the installed
+AtlasLoot snapshot and an open Octo phase. **Include unverified entries** defaults
+to off, including a one-time reset of the earlier permissive setting. Turning it
+on shows records without confirmed sources/phases; it does not unlock established
+future-phase requirements. **Show future phases** remains a separate choice.
+
+Tower of Karazhan loot is phase 7 even when the underlying Turtle database also
+contains test-map spawns. Enchant recipes and required materials retain their phase
+gates. Original Ashbringer and Azzinoth blades remain unverified-only; Corrupted
+Ashbringer is a separate, verified Naxxramas item. Collection/showcase pages alone
+are not proof of an acquisition route. Existing saved gear and stats are preserved.
+
+The phase button now lives in the item filter toolbar. Long item/enchant descriptions
+are shortened to one line, with their full text available on hover. See
+[AtlasLoot source provenance](docs/atlasloot-sources.md) for the recorded snapshot,
+exceptions and rebuild process. This baseline can be revised for later Octo changes.
+
+### Included from 1.0.6
 
 Click **CLASS**, **RACE** or **BUILD** to choose directly from a dropdown. The header
 keeps its existing pointed button art. Unsupported race/class combinations stay

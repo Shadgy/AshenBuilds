@@ -103,10 +103,12 @@ function AshenBuilds:IsClassAllowedRaw(r, className)
   return math.mod(math.floor(mask/bit),2) == 1
 end
 
-function AshenBuilds:IsHiddenRaw(r)
+function AshenBuilds:IsHiddenRaw(r,ignoreAvailabilityFlag)
   if not r then return true end
   local name=r[1] or ""; local n=string.upper(name); local i,word
-  for i=1,table.getn(r[20] or {}) do if r[20][i]=="unobtainable" then return true end end
+  if not ignoreAvailabilityFlag then
+    for i=1,table.getn(r[20] or {}) do if r[20][i]=="unobtainable" then return true end end
+  end
   -- Match explicit markers, never fragments inside GOLD, COLD or SMOLDERING.
   if string.find(name,"^%s*OLD[%s_:%-]") or string.find(n,"%[OLD%]") or string.find(n,"%[PH%]") then return true end
   if string.find(n,"^%s*MONSTER[%s_:%-]") or string.find(n,"^%s*ZZZZ") or string.find(n,"^%s*QA[%s_:%-]") then return true end

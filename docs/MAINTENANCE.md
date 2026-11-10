@@ -2,8 +2,8 @@
 
 ## Current local status — 2026-11-10
 
-Status: **w weryfikacji**. Local candidate **1.0.6** adds direct profile dropdowns
-and a sourced Octo race/class compatibility matrix. Install only the local package
+Status: **w weryfikacji**. Local candidate **1.0.7** adds the user-approved AtlasLoot
+acquisition baseline, independent phase gates and verified-only defaults. Install only the local package
 in `D:\Games\Octo-clean\Interface\AddOns\AshenBuilds` for client validation.
 
 - The user reports testing 1.0.5 on Paladin and Warrior. The supplied Paladin
@@ -24,6 +24,21 @@ in `D:\Games\Octo-clean\Interface\AddOns\AshenBuilds` for client validation.
   Local Lua 5.0 compilation is unavailable; offline checks do not replace Octo.
 - Local 1.0.6 validation passed 634 addon assertions and 26 release-tooling tests,
   plus manifest/API lint, independent review and menu geometry/color previews.
+- The user accepted the profile menus and reported phase-2 Tower loot leaking as
+  Unverified. Root cause: the old Turtle summary combined a real phase-7 route
+  with Development Land and lost its guaranteed minimum. Real AtlasLoot Tower
+  routes now retain phase 7. New source-policy checks are recorded separately.
+- The user explicitly chose normal suggestions confirmed by AtlasLoot and open
+  in the selected phase, with Unverified off by default. Retain the snapshot and
+  hashes; revise the baseline later if Octo changes drops/items. Missing evidence
+  is not a reason to delete an item or change its saved stats.
+- Local 1.0.7 validation passed 720 addon assertions and 48 tooling tests,
+  plus manifest/API lint, independent source/phase review and picker previews.
+  At phase 2 the source policy yields 4,470 available, 1,090 future and 10,509
+  unverified item records; enchants are 219 available, 13 future and 31 unverified.
+  Source evidence exists for 5,999 catalog items and 239 enchants, including
+  439 items and 7 enchants with unresolved phase. Unlisted entries are not
+  automatically declared unobtainable.
 - Keep the current weapon-skill crit model: +0.20 percentage points per +5
   skill. Its Octo verification remains unresolved and the user explicitly
   deferred that check. Do not mark the coefficient as Octo-verified.

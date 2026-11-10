@@ -45,8 +45,14 @@ an item's name.
 
 These are **source routes from a Turtle snapshot interpreted through an Octo content
 profile**, not certification of every current Octo drop table, spawn, recipe or cost.
-Verified Octo exceptions can override individual item/enchant IDs. Unknown sources
-are marked and kept by default; the user can exclude them explicitly.
+Verified Octo exceptions can override individual item/enchant IDs.
+
+Since local 1.0.7, this Turtle graph supplies phase/dependency information but no
+longer certifies a normal suggestion by itself. The user-approved verification
+baseline is the recorded AtlasLoot acquisition snapshot, described in
+`atlasloot-sources.md`. Sources or phases that remain unverified are hidden by
+default and can be inspected explicitly. The old permissive setting is migrated
+once; later user choices persist. A known future requirement remains gated.
 
 ## Compact fields
 

@@ -54,7 +54,10 @@ function AB:GetAvailabilitySettings()
   if type(s)~="table" then s={}; AshenBuildsDB.settings.availability=s end
   if s.profile~="Catalog" then s.profile="Octo" end
   s.phase=math.max(0,math.min(7,math.floor(tonumber(s.phase) or 2)))
-  if s.includeUnknown==nil then s.includeUnknown=true end
+  -- The user-approved AtlasLoot policy replaces the earlier permissive default.
+  -- Migrate once; later explicit choices must survive refreshes and relogging.
+  if s.atlasPolicy~=1 then s.includeUnknown=false; s.atlasPolicy=1 end
+  if s.includeUnknown==nil then s.includeUnknown=false end
   if type(s.instances)~="table" then s.instances={} end
   return s
 end
@@ -93,7 +96,7 @@ local function FullSources(record,settings)
   return Result("unknown","Acquisition route or required dependency is not fully mapped",instances,{incomplete=true,sourceRecord=record})
 end
 
-function AB:GetItemAvailability(id,settings)
+function AB:GetCatalogItemAvailability(id,settings)
   if type(settings)~="table" then settings=self:GetAvailabilitySettings() end; id=tonumber(id)
   local o=self.ItemAvailabilityOverrides[id]; if o then return Override(o,settings) end
   local raw=self:GetRawItem(id); if not raw then return Result("unknown","Item is not in this data pack") end
@@ -120,7 +123,7 @@ function AB:GetItemAvailability(id,settings)
   return Result("future","Requires Octo phase "..earliest,instances,{phase=earliest})
 end
 
-function AB:GetEnchantAvailability(id,settings)
+function AB:GetCatalogEnchantAvailability(id,settings)
   if type(settings)~="table" then settings=self:GetAvailabilitySettings() end
   local o=self.EnchantAvailabilityOverrides[tonumber(id)]
   if o then return Override(o,settings) end
@@ -129,10 +132,99 @@ function AB:GetEnchantAvailability(id,settings)
   return Result("unknown","Enchant acquisition source is not verified",{}, {incomplete=true})
 end
 
+local function AtlasAvailability(record,full,settings,isEnchant)
+  if not record or table.getn(record.routes or {})==0 then return nil end
+  local instances,instancePhases={},{}
+  local earliest,minimum,unresolved=nil,tonumber(isEnchant and full and full.l) or 0,false
+  local unresolvedMinimum
+  local i,route,phase,bound,location
+  for i=1,table.getn(record.routes) do
+    route=record.routes[i]; phase=tonumber(route.phase)
+    bound=math.max(minimum,tonumber(route.minimumPhase) or 0)
+    if phase then phase=math.max(phase,bound)
+    else
+      unresolved=true
+      if not unresolvedMinimum or bound<unresolvedMinimum then unresolvedMinimum=bound end
+    end
+    if phase and (not earliest or phase<earliest) then earliest=phase end
+    location=route.instance
+    if location then
+      instances[location]=true
+      if phase and (not instancePhases[location] or phase<instancePhases[location]) then instancePhases[location]=phase end
+    end
+  end
+  if isEnchant and full then
+    local locations=AshenBuildsContentSources and AshenBuildsContentSources.locations or {}
+    for i=1,table.getn(full.z or {}) do
+      location=locations[full.z[i]]
+      if location and location.phase~=nil then instances[location.name]=true end
+    end
+  end
+  local extra={verified=true,verification="AtlasLoot",atlasRecord=record,sourceRecord=full,
+    phase=earliest,minPhase=earliest or unresolvedMinimum or minimum,instancePhases=instancePhases,phaseUnresolved=unresolved}
+  if earliest then
+    local future=earliest>CurrentPhase(settings)
+    if future and unresolvedMinimum and unresolvedMinimum<earliest then
+      extra.phase=nil; extra.knownSourcePhase=earliest; extra.minPhase=unresolvedMinimum; extra.incomplete=true
+      return Result("unknown","AtlasLoot has a phase "..earliest.." route and another route whose phase is unresolved",instances,extra)
+    end
+    return Result(future and "future" or "available","AtlasLoot acquisition source; "..
+      (future and "requires Octo phase " or "available by Octo phase ")..earliest,instances,extra)
+  end
+  extra.incomplete=true
+  return Result("unknown","AtlasLoot source is recorded, but its phase is not fully established",instances,extra)
+end
+
+local function Unverified(catalog,full)
+  local flagged=catalog.status=="unobtainable"
+  if full and catalog.sourceRecord~=full then catalog=FullSources(full,{phase=0}); catalog.sourceRecord=full end
+  local minimum=tonumber(full and full.l) or 0
+  if full and full.u==false and full.p then minimum=math.max(minimum,full.p)
+  elseif not full and not catalog.incomplete and catalog.phase then minimum=math.max(minimum,catalog.phase) end
+  catalog.knownSourcePhase=(full and full.p) or catalog.phase; catalog.phase=nil; catalog.minPhase=minimum
+  catalog.status="unknown"; catalog.verified=false; catalog.catalogUnavailable=flagged
+  catalog.reason="No verified AtlasLoot acquisition source"
+  if flagged then catalog.reason=catalog.reason.."; catalog marks this item unavailable" end
+  if minimum>0 then catalog.reason=catalog.reason.."; known requirements start at Octo phase "..minimum end
+  return catalog
+end
+
+local function Curated(o,settings)
+  local result=Override(o,settings)
+  result.verified=result.status=="available" or result.status=="future"
+  result.verification="Recorded server exception"
+  result.minPhase=result.phase
+  return result
+end
+
+function AB:GetItemAvailability(id,settings)
+  if type(settings)~="table" then settings=self:GetAvailabilitySettings() end
+  id=tonumber(id)
+  local o=self.ItemAvailabilityOverrides[id]; if o then return Curated(o,settings) end
+  if not self:GetRawItem(id) then return Result("unknown","Item is not in this data pack",{}, {verified=false,incomplete=true}) end
+  local full=AshenBuildsContentSources and AshenBuildsContentSources.items[id]
+  local atlas=AshenBuildsAtlasLootSources and AshenBuildsAtlasLootSources.items[id]
+  local result=AtlasAvailability(atlas,full,settings,false)
+  if result then return result end
+  return Unverified(self:GetCatalogItemAvailability(id,settings),full)
+end
+
+function AB:GetEnchantAvailability(id,settings)
+  if type(settings)~="table" then settings=self:GetAvailabilitySettings() end
+  id=tonumber(id)
+  local o=self.EnchantAvailabilityOverrides[id]; if o then return Curated(o,settings) end
+  local full=AshenBuildsContentSources and AshenBuildsContentSources.enchants[id]
+  local atlas=AshenBuildsAtlasLootSources and AshenBuildsAtlasLootSources.enchants[id]
+  local result=AtlasAvailability(atlas,full,settings,true)
+  if result then return result end
+  return Unverified(self:GetCatalogEnchantAvailability(id,settings),full)
+end
+
 function AB:MatchesAvailability(result,settings,showHidden)
   if type(settings)~="table" then settings=self:GetAvailabilitySettings() end
   if result.status=="unobtainable" then return showHidden and true or false end
   if settings.profile=="Catalog" then return true end
+  if (result.minPhase or 0)>CurrentPhase(settings) and not settings.showFuture then return false end
   if result.status=="future" then return settings.showFuture and true or false end
   if result.status=="unknown" then return settings.includeUnknown~=false end
   return true
@@ -147,11 +239,13 @@ function AB:MatchesContentInstances(result,settings)
     local phase=phases[zone]
     if settings.profile=="Catalog" or settings.showFuture or not phase or phase<=CurrentPhase(settings) then
       eligible=true
-      if result.instances and result.instances[zone] then return true end
+      local routePhase=result.instancePhases and result.instancePhases[zone]
+      if result.instances and result.instances[zone] and
+        (settings.profile=="Catalog" or settings.showFuture or not routePhase or routePhase<=CurrentPhase(settings)) then return true end
     end
   end
   -- An omitted route cannot make a known closed instance eligible at this phase.
-  return eligible and result.incomplete and settings.includeUnknown~=false and true or false
+  return eligible and result.status=="unknown" and result.incomplete and settings.includeUnknown~=false and true or false
 end
 
 function AB:GetAvailabilityLabel()
@@ -161,6 +255,6 @@ function AB:GetAvailabilityLabel()
 end
 
 function AB:AvailabilityNote(result)
-  local labels={available="Mapped source",future="Future phase",unobtainable="Unavailable",unknown="Unverified"}
+  local labels={available="Verified source",future="Future phase",unobtainable="Unavailable",unknown="Unverified"}
   return (labels[result.status] or "Unverified")..": "..(result.reason or "")
 end

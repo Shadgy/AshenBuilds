@@ -781,13 +781,43 @@ end
 
 function AB:QueueItemRefresh(delay) self.itemRefreshAt=GetTime()+(delay or 0) end
 
+-- Picker rows have a fixed two-line layout. Measure without wrapping, then keep
+-- one shortened line; the original remains available in the row tooltip.
+local function PickerPrefix(text,length)
+  local nextByte=string.byte(text,length+1)
+  while length>0 and nextByte and nextByte>=128 and nextByte<192 do
+    length=length-1; nextByte=string.byte(text,length+1)
+  end
+  return string.sub(text,1,length)
+end
+function AB:SetPickerLine(fontString,text)
+  fontString.fullText=tostring(text or ""); fontString.truncated=false
+  text=string.gsub(fontString.fullText,"[\r\n]"," ")
+  local width=fontString:GetWidth()
+  fontString:SetWidth(10000); fontString:SetText(text)
+  local measured=fontString:GetStringWidth()
+  if type(measured)=="number" and measured>width then
+    local plain=string.gsub(string.gsub(text,"|c%x%x%x%x%x%x%x%x",""),"|r","")
+    local low,high,best=0,string.len(plain),""
+    while low<=high do
+      local mid=math.floor((low+high)/2)
+      local candidate=PickerPrefix(plain,mid).."..."
+      fontString:SetText(candidate)
+      if (fontString:GetStringWidth() or 0)<=width then best=candidate; low=mid+1 else high=mid-1 end
+    end
+    text=best; fontString.truncated=true
+  end
+  fontString:SetWidth(width); fontString:SetText(text)
+end
+
 function AB:CreateItemBrowser()
   self:ItemFilterDefaults()
   local f=CreateFrame("Frame","AshenBuildsItemBrowser",UIParent); f:SetWidth(880); f:SetHeight(700); f:SetPoint("CENTER",UIParent,"CENTER",0,0); MakeBackdrop(f); self:SetupWindow(f,{fit=true,wheel=function() AB:ScrollItemPage(arg1) end}); f:Hide(); self.itemBrowser=f
   self:ApplyEmberBackground(f,10,0.55,0.5,0.4); self:AddEmberHeader(f,34); self:AddEmberWell(f,22,-190,-22,48)
   local t=f:CreateFontString(nil,"OVERLAY","GameFontNormalLarge"); t:SetPoint("TOP",f,"TOP",0,-17); t:SetText("ITEM DATABASE"); self.itemBrowserTitle=t
   local close=CreateFrame("Button",nil,f,"UIPanelCloseButton"); close:SetPoint("TOPRIGHT",f,"TOPRIGHT",-4,-4); f.closeButton=close; self:AddChrome(f,t); self:AddChrome(f,close)
-  self:CreateAvailabilityButton(f)
+  self.itemAvailabilityButton=self:CreateAvailabilityButton(f,"TOPRIGHT",-26,-160)
+  self:Caption(f,"Content / phases",self.itemAvailabilityButton,0,3)
   -- Search typing is debounced; everything else refreshes on the next frame.
   f:SetScript("OnUpdate",function() if AB.itemRefreshAt and GetTime()>=AB.itemRefreshAt then AB.itemRefreshAt=nil; AB.itemPage=1; AB:RefreshItemResults() end end)
 
@@ -874,9 +904,9 @@ function AB:CreateItemBrowser()
   for i=1,ITEM_ROWS do
     local r=CreateFrame("Button",nil,f); r:SetWidth(820); r:SetHeight(36); r:SetPoint("TOPLEFT",f,"TOPLEFT",28,-196-(i-1)*38); r:SetPoint("RIGHT",f,"RIGHT",-28,0); r:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
     r.icon=r:CreateTexture(nil,"ARTWORK"); r.icon:SetWidth(30); r.icon:SetHeight(30); r.icon:SetPoint("LEFT",r,"LEFT",2,0)
-    r.name=r:CreateFontString(nil,"OVERLAY","GameFontHighlight"); r.name:SetPoint("TOPLEFT",r.icon,"TOPRIGHT",8,-1); r.name:SetWidth(520); r.name:SetJustifyH("LEFT")
-    r.meta=r:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall"); r.meta:SetPoint("TOPRIGHT",r,"TOPRIGHT",-6,-3); r.meta:SetWidth(250); r.meta:SetJustifyH("RIGHT"); r.meta:SetTextColor(.64,.67,.72)
-    r.stats=r:CreateFontString(nil,"OVERLAY","GameFontDisableSmall"); r.stats:SetTextColor(AB.THEME.muted[1],AB.THEME.muted[2],AB.THEME.muted[3]); r.stats:SetPoint("BOTTOMLEFT",r.icon,"BOTTOMRIGHT",8,2); r.stats:SetWidth(770); r.stats:SetJustifyH("LEFT")
+    r.name=r:CreateFontString(nil,"OVERLAY","GameFontHighlight"); r.name:SetPoint("TOPLEFT",r.icon,"TOPRIGHT",8,-1); r.name:SetWidth(520); r.name:SetHeight(14); r.name:SetJustifyH("LEFT")
+    r.meta=r:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall"); r.meta:SetPoint("TOPRIGHT",r,"TOPRIGHT",-6,-3); r.meta:SetWidth(250); r.meta:SetHeight(12); r.meta:SetJustifyH("RIGHT"); r.meta:SetTextColor(.64,.67,.72)
+    r.stats=r:CreateFontString(nil,"OVERLAY","GameFontDisableSmall"); r.stats:SetTextColor(AB.THEME.muted[1],AB.THEME.muted[2],AB.THEME.muted[3]); r.stats:SetPoint("BOTTOMLEFT",r.icon,"BOTTOMRIGHT",8,2); r.stats:SetWidth(770); r.stats:SetHeight(12); r.stats:SetJustifyH("LEFT")
     r:RegisterForClicks("LeftButtonUp","RightButtonUp")
     r:SetScript("OnClick",function()
       if not this.itemID then return end
@@ -884,7 +914,12 @@ function AB:CreateItemBrowser()
       AB:EquipItem(AB.browserSlot,this.itemID)
       if AB.browserSlot~="ALL" then AB.itemBrowser:Hide() end
     end)
-    r:SetScript("OnEnter",function() if this.itemID then AB:ShowItemTooltip(this,this.itemID) end end); r:SetScript("OnLeave",function() GameTooltip:Hide() end)
+    r:SetScript("OnEnter",function()
+      if this.itemID then
+        AB:ShowItemTooltip(this,this.itemID)
+        if this.stats.truncated then GameTooltip:AddLine(this.stats.fullText,.8,.8,.8,true); GameTooltip:Show() end
+      end
+    end); r:SetScript("OnLeave",function() GameTooltip:Hide() end)
     self.itemRows[i]=r
   end
   self.prevItem=MakeButton(f,"Previous",82,22); self.prevItem:SetPoint("BOTTOMLEFT",f,"BOTTOMLEFT",28,18); self.prevItem:SetScript("OnClick",function() AB:ScrollItemPage(1) end)
@@ -969,18 +1004,18 @@ function AB:RenderItemPage()
   for i=1,ITEM_ROWS do
     row=self.itemRows[i]; id=matches[(self.itemPage-1)*ITEM_ROWS+i]; id=id and idx.id[id]; item=id and self:GetItem(id)
     if item then
-      row.itemID=id; row.icon:SetTexture(item.icon); row.name:SetText(item.n)
+      row.itemID=id; row.icon:SetTexture(item.icon); self:SetPickerLine(row.name,item.n)
       c=qualityColors[item.q] or qualityColors[1]; row.name:SetTextColor(c[1],c[2],c[3])
       kind=SLOT_TEXT[item.slot] or ""
       if item.itemClass==4 and ARMOR_TEXT[item.subclass] then kind=ARMOR_TEXT[item.subclass].." "..kind elseif item.itemClass==2 and item.weaponType then kind=kind.." "..item.weaponType end
-      row.meta:SetText(kind.."   |cffd9c9a3iLvl "..(item.ilvl or 0).."|r"..((item.req or 0)>0 and ("   Req "..item.req) or ""))
+      self:SetPickerLine(row.meta,kind.."   |cffd9c9a3iLvl "..(item.ilvl or 0).."|r"..((item.req or 0)>0 and ("   Req "..item.req) or ""))
       local text=self:StatSummary(self.GetItemStatTotals and self:GetItemStatTotals(id) or item.stats); local direct=self:GetDirectSourceSummary(id)
       if direct~="" then text=(text~="" and (text.."  -  ") or "")..direct end
       local availability=self:GetItemAvailability(id)
-      if availability.status=="future" then text=text.."  |cffffa040[Phase "..availability.phase.."]|r"
-      elseif availability.status=="unknown" then text=text.."  |cff9ea5b2[Unverified source]|r"
-      elseif availability.status=="unobtainable" then text=text.."  |cffff6060[Unavailable]|r" end
-      row.stats:SetText(text); row:Show()
+      if availability.status=="future" then text="|cffffa040[Phase "..availability.phase.."]|r  "..text
+      elseif availability.status=="unknown" then text="|cff9ea5b2[Unverified "..(availability.verified and "phase" or "source").."]|r  "..text
+      elseif availability.status=="unobtainable" then text="|cffff6060[Unavailable]|r  "..text end
+      self:SetPickerLine(row.stats,text); row:Show()
     else row.itemID=nil; row:Hide() end
   end
   self.pageText:SetText("Page "..self.itemPage.." / "..pages.."  ("..total.." items)")
@@ -1037,7 +1072,7 @@ function AB:CreateEnchantBrowser()
   self:ApplyEmberBackground(f,10,0.5,0.5,0.4); self:AddEmberHeader(f,34); self:AddEmberWell(f,22,-130,-22,44)
   f.title=f:CreateFontString(nil,"OVERLAY","GameFontNormalLarge"); f.title:SetPoint("TOP",f,"TOP",0,-18)
   local close=CreateFrame("Button",nil,f,"UIPanelCloseButton"); close:SetPoint("TOPRIGHT",f,"TOPRIGHT",-4,-4)
-  self:CreateAvailabilityButton(f)
+  self.enchantAvailabilityButton=self:CreateAvailabilityButton(f)
   f.item=f:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall"); f.item:SetPoint("TOPLEFT",f,"TOPLEFT",28,-58); f.item:SetWidth(340); f.item:SetJustifyH("LEFT")
   local none=MakeButton(f,"Remove Enchant",130,22); none:SetPoint("TOPRIGHT",f,"TOPRIGHT",-26,-52); none:SetScript("OnClick",function() AB:ApplyEnchant(AB.enchantSlot,0); f:Hide() end)
 
@@ -1055,10 +1090,18 @@ function AB:CreateEnchantBrowser()
   self.enchantRows={}; local i
   for i=1,ENCHANT_ROWS do
     local r=CreateFrame("Button",nil,f); r:SetWidth(506); r:SetHeight(36); r:SetPoint("TOPLEFT",f,"TOPLEFT",26,-136-(i-1)*38); r:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
-    r.text=r:CreateFontString(nil,"OVERLAY","GameFontHighlight"); r.text:SetPoint("TOPLEFT",r,"TOPLEFT",8,-3); r.text:SetWidth(490); r.text:SetJustifyH("LEFT")
-    r.desc=r:CreateFontString(nil,"OVERLAY","GameFontDisableSmall"); r.desc:SetPoint("BOTTOMLEFT",r,"BOTTOMLEFT",8,3); r.desc:SetWidth(490); r.desc:SetJustifyH("LEFT"); r.desc:SetTextColor(.3,.95,.3)
+    r.text=r:CreateFontString(nil,"OVERLAY","GameFontHighlight"); r.text:SetPoint("TOPLEFT",r,"TOPLEFT",8,-3); r.text:SetWidth(490); r.text:SetHeight(14); r.text:SetJustifyH("LEFT")
+    r.desc=r:CreateFontString(nil,"OVERLAY","GameFontDisableSmall"); r.desc:SetPoint("BOTTOMLEFT",r,"BOTTOMLEFT",8,3); r.desc:SetWidth(490); r.desc:SetHeight(12); r.desc:SetJustifyH("LEFT"); r.desc:SetTextColor(.3,.95,.3)
     r:SetScript("OnClick",function() if this.enchantID then AB:ApplyEnchant(AB.enchantSlot,this.enchantID); f:Hide() end end)
-    r:SetScript("OnEnter",function() local e=this.enchantID and AshenBuildsEnchants[this.enchantID]; if e and e.tip then GameTooltip:SetOwner(this,"ANCHOR_RIGHT"); GameTooltip:SetText(e.n,1,.82,0); GameTooltip:AddLine(e.tip,.1,1,.1,true); AB:AddAvailabilityTooltip(AB:GetEnchantAvailability(this.enchantID)); GameTooltip:Show() end end)
+    r:SetScript("OnEnter",function()
+      local e=this.enchantID and AshenBuildsEnchants[this.enchantID]
+      if e then
+        GameTooltip:SetOwner(this,"ANCHOR_RIGHT"); GameTooltip:SetText(e.n,1,.82,0)
+        if e.tip and e.tip~="" then GameTooltip:AddLine(e.tip,.1,1,.1,true) end
+        if this.desc.truncated then GameTooltip:AddLine(this.desc.fullText,.3,.95,.3,true) end
+        AB:AddAvailabilityTooltip(AB:GetEnchantAvailability(this.enchantID)); GameTooltip:Show()
+      end
+    end)
     r:SetScript("OnLeave",function() GameTooltip:Hide() end)
     self.enchantRows[i]=r
   end
@@ -1129,12 +1172,12 @@ function AB:RenderEnchantRows()
   for i=1,ENCHANT_ROWS do
     r=self.enchantRows[i]; id=matches[self.enchantOffset+i]; e=id and AshenBuildsEnchants[id]
     if e then
-      r.enchantID=id; r.text:SetText((id==current and "|cffffd100> |r" or "")..e.n)
+      r.enchantID=id; self:SetPickerLine(r.text,(id==current and "|cffffd100> |r" or "")..e.n)
       desc=self:StatSummary(e.stats); if desc=="" then desc=e.tip or e.desc or "" end
       local availability=self:GetEnchantAvailability(id)
-      if availability.status=="future" then desc=desc.."  [Phase "..availability.phase.."]"
-      elseif availability.status=="unknown" then desc=desc.."  [Unverified source]" end
-      r.desc:SetText(desc); r:Show()
+      if availability.status=="future" then desc="[Phase "..availability.phase.."]  "..desc
+      elseif availability.status=="unknown" then desc="[Unverified "..(availability.verified and "phase" or "source").."]  "..desc end
+      self:SetPickerLine(r.desc,desc); r:Show()
     else r.enchantID=nil; r:Hide() end
   end
   local text
@@ -1596,9 +1639,10 @@ end
 ---------------------------------------------------------------------------
 -- Content availability. One shared profile drives both item and enchant pickers.
 ---------------------------------------------------------------------------
-function AB:CreateAvailabilityButton(parent)
+function AB:CreateAvailabilityButton(parent,anchor,x,y)
   local b=MakeButton(parent,self:GetAvailabilityLabel(),142,20)
-  b:SetPoint("TOPLEFT",parent,"TOPLEFT",24,-10)
+  anchor=anchor or "TOPLEFT"
+  b:SetPoint(anchor,parent,anchor,x or 24,y or -10)
   b:SetScript("OnClick",function() AB:RefreshAvailabilityControls(); AB.availabilityBrowser:Show() end)
   self.availabilityButtons=self.availabilityButtons or {}; table.insert(self.availabilityButtons,b)
   return b
@@ -1619,7 +1663,7 @@ function AB:RefreshAvailabilityControls()
 end
 
 function AB:CreateAvailabilityBrowser()
-  local f=CreateFrame("Frame","AshenBuildsAvailabilityBrowser",UIParent); f:SetWidth(570); f:SetHeight(330); f:SetPoint("CENTER",UIParent,"CENTER",0,20)
+  local f=CreateFrame("Frame","AshenBuildsAvailabilityBrowser",UIParent); f:SetWidth(570); f:SetHeight(380); f:SetPoint("CENTER",UIParent,"CENTER",0,20)
   MakeBackdrop(f); self:SetupWindow(f,{fit=true}); self:ApplyEmberBackground(f,10,.45,.5,.45); self:AddEmberHeader(f,34); f:Hide(); self.availabilityBrowser=f
   local title=f:CreateFontString(nil,"OVERLAY","GameFontNormalLarge"); title:SetPoint("TOP",f,"TOP",0,-18); title:SetText("CONTENT AVAILABILITY")
   local close=CreateFrame("Button",nil,f,"UIPanelCloseButton"); close:SetPoint("TOPRIGHT",f,"TOPRIGHT",-4,-4)
@@ -1642,9 +1686,10 @@ function AB:CreateAvailabilityBrowser()
     onSelect=function(v) local s=AB:GetAvailabilitySettings(); if v=="__all" then s.instances={} else s.instances[v]=not s.instances[v] or nil end; AB:RefreshContentViews() end})
   f.instances:SetPoint("TOPLEFT",f,"TOPLEFT",28,-124); self:Caption(f,"Acquisition locations (multiple selection)",f.instances)
   f.future=self:CreateCheck(f,"Show future phases",function(v) AB:GetAvailabilitySettings().showFuture=v; AB:RefreshContentViews() end); f.future:SetPoint("TOPLEFT",f,"TOPLEFT",28,-170)
-  f.unknown=self:CreateCheck(f,"Include unverified sources",function(v) AB:GetAvailabilitySettings().includeUnknown=v; AB:RefreshContentViews() end); f.unknown:SetPoint("TOPLEFT",f,"TOPLEFT",280,-170)
+  f.unknown=self:CreateCheck(f,"Include unverified entries",function(v) AB:GetAvailabilitySettings().includeUnknown=v; AB:RefreshContentViews() end); f.unknown:SetPoint("TOPLEFT",f,"TOPLEFT",280,-170)
   local note=f:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall"); note:SetPoint("TOPLEFT",f,"TOPLEFT",30,-212); note:SetWidth(505); note:SetJustifyH("LEFT")
-  note:SetText("Filters affect suggestions only; saved builds keep all their items and enchants.\nUnverified or incomplete acquisition sources are marked, not treated as unavailable.\nOcto roadmap checked "..self.ContentProfileChecked..". Future content dates may change.")
+  note:SetText("Verified sources use mapped AtlasLoot acquisition tables. The selected Octo phase still applies, including recipe/material requirements.\nIn the Octo profile, unverified entries are off by default. Items without a mapped route, including original Ashbringer or Azzinoth blades, appear only when enabled. This does not unlock known future phases.\nFilters affect suggestions only; saved builds keep all items and enchants.\nOcto roadmap checked "..self.ContentProfileChecked..".")
+  f.note=note
   local done=MakeButton(f,"Done",100,24); done:SetPoint("BOTTOM",f,"BOTTOM",0,18); done:SetScript("OnClick",function() f:Hide() end)
   self:RefreshAvailabilityControls()
 end

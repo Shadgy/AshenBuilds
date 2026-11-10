@@ -1,6 +1,7 @@
 local A=AshenBuilds
 local s=A:GetAvailabilitySettings()
 check("content profile defaults to Octo phase 2",s.profile=="Octo" and s.phase==2)
+check("AtlasLoot policy defaults to verified sources only",s.includeUnknown==false and s.atlasPolicy==1)
 check("Sapphiron enchant is future in phase 2",A:GetEnchantAvailability(37).status=="future" and not A:MatchesAvailability(A:GetEnchantAvailability(37)))
 s.phase=6
 check("Sapphiron enchant opens with Naxx phase",A:GetEnchantAvailability(37).status=="available" and A:MatchesAvailability(A:GetEnchantAvailability(37)))
@@ -9,6 +10,12 @@ s.phase=2
 local function Item(id,sources,cats)
   AshenDB.Items[id]={"Bulwark Example",4,"SHIELD",60,70,"INV_Shield_01",4,6,2000,0,-1,-1,1,0,0,0,0,"",{},cats or {}}
   AshenDB.ItemSources[id]=sources
+  local routes,complete={},sources and table.getn(sources)>0 and not cats
+  for _,source in ipairs(sources or {}) do
+    local phase=({["Blackwing Lair"]=2,["Naxxramas"]=6,["Molten Core"]=0})[source[4] or ""]
+    if source[1]=="drop" and phase then table.insert(routes,{instance=source[4],phase=phase,kind="raid",source=source[3],table="Fixture"}) else complete=false end
+  end
+  if complete then AshenBuildsAtlasLootSources.items[id]={routes=routes} end
 end
 Item(990001,{{"drop",1,"Nefarian","Blackwing Lair"},{"drop",2,"Sapphiron","Naxxramas"}})
 Item(990002,{{"drop",2,"Sapphiron","Naxxramas"}})
@@ -17,9 +24,10 @@ Item(990004,nil)
 Item(990005,{{"drop",1,"Nefarian","Blackwing Lair"}},{"unobtainable"})
 check("one current acquisition route is enough",A:GetItemAvailability(990001).status=="available")
 check("complete future-only sources can be filtered",A:GetItemAvailability(990002).status=="future" and not A:MatchesAvailability(A:GetItemAvailability(990002)))
+s.includeUnknown=true
 check("truncated sources are not treated as future-only",A:GetItemAvailability(990003).status=="unknown" and A:MatchesAvailability(A:GetItemAvailability(990003)))
 check("missing source is unknown rather than unavailable",A:GetItemAvailability(990004).status=="unknown" and A:MatchesAvailability(A:GetItemAvailability(990004)))
-check("catalog unavailable flag is explicit",A:GetItemAvailability(990005).status=="unobtainable" and not A:MatchesAvailability(A:GetItemAvailability(990005)))
+check("catalog flags without Atlas evidence remain unverified",A:GetItemAvailability(990005).status=="unknown" and A:GetItemAvailability(990005).catalogUnavailable)
 s.includeUnknown=false
 check("verified-only mode excludes unknowns",not A:MatchesAvailability(A:GetItemAvailability(990004)))
 s.includeUnknown=true; s.instances={["Blackwing Lair"]=true}
@@ -96,7 +104,7 @@ check("Timbermaw enchant recipes require phase 5",A:GetEnchantAvailability(14901
 check("PvP rank 13 gear requires phase 3",A:GetItemAvailability(16466).status=="future" and A:GetItemAvailability(16466).phase==3)
 content.enchants[990012]={l=4,u=true,z={531},r=1}
 local necessary=A:GetEnchantAvailability(990012)
-check("unknown reagent cannot bypass a necessary future recipe",necessary.status=="future" and necessary.phase==4)
+check("unverified source cannot bypass a necessary future recipe",necessary.status=="unknown" and necessary.minPhase==4 and not A:MatchesAvailability(necessary))
 s.phase=4
 check("mapped AQ recipe opens with selected phase",A:GetEnchantAvailability(48).status=="available")
 s.phase=2

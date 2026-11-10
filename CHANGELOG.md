@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.7 — local candidate, not published
+
+- Use a recorded AtlasLoot acquisition snapshot as the user-approved source baseline, alongside the existing Octo phase/dependency model. Store file hashes, table provenance and stable item/enchant IDs without replacing stats.
+- Default Unverified to off and migrate the previous permissive setting once. Later explicit user choices persist. Source verification and phase availability are separate conditions.
+- Keep Tower of Karazhan in phase 7 despite unrelated Development Land spawns. Preserve recipe/material gates and explicit PvP ranks; Unverified cannot bypass established future requirements.
+- Keep original Ashbringer/Azzinoth and excluded showcase/temporary artifacts in Unverified only. Preserve actual Corrupted Ashbringer in Naxxramas and real legendary acquisition routes.
+- Merge AtlasLoot categories and source names into item filtering/search, including items missing their old short source excerpt.
+- Move the phase button away from profile controls. Bound item/enchant rows to single-line names/descriptions, shortening long text with full text on hover.
+- Preserve saved builds and the deferred weapon-skill crit model. No publication or remote CI was performed.
+
 ## 1.0.6 — local candidate, not published
 
 - Replace cycling CLASS/RACE/BUILD selectors with direct dropdown choices, preserving their existing pointed art, dimensions and positions.

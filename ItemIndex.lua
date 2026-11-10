@@ -56,6 +56,7 @@ local function UseLevel(id, r)
   return req
 end
 
+local ATLAS_SOURCE_BITS={dungeon=1,raid=2,quest=4,worldboss=8,craft=16,reputation=32,pvp=64,worlddrop=128,vendor=256}
 local function SourceInfo(id, r)
   local mask, words = 0, {}
   local cats = r[20] or {}
@@ -86,6 +87,13 @@ local function SourceInfo(id, r)
       if s[1] ~= "craft" and type(s[4]) == "string" and s[4] ~= "" then table.insert(words, s[4]) end
     end
   end
+  local atlas=AshenBuildsAtlasLootSources and AshenBuildsAtlasLootSources.items[id]
+  for i=1,table.getn(atlas and atlas.routes or {}) do
+    local route=atlas.routes[i]; local bit=ATLAS_SOURCE_BITS[route.kind] or 0
+    if bit>0 and not HasBit(mask,bit) then mask=mask+bit end
+    if route.instance then table.insert(words,route.instance) end
+    if route.source then table.insert(words,route.source) end
+  end
   return mask, string.lower(table.concat(words, " "))
 end
 
@@ -108,6 +116,7 @@ local function Reset()
   IDX.pos = 0; IDX.done = false; IDX.n = 0
   IDX.id, IDX.name, IDX.q, IDX.req, IDX.ilvl, IDX.hidden, IDX.class, IDX.src, IDX.srcText, IDX.stats = {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
   IDX.use, IDX.armor, IDX.wtype, IDX.slot = {}, {}, {}, {}
+  IDX.markedHidden={}
   IDX.bySlot = {ALL = {}}
   local i; for i = 1, table.getn(AB.SLOTS) do IDX.bySlot[AB.SLOTS[i]] = {} end
 end
@@ -137,6 +146,7 @@ function IDX:Step(budget)
         mask, text = SourceInfo(id, r)
         self.id[n] = id; self.name[n] = string.lower(r[1] or ""); self.q[n] = r[2] or 1; self.req[n] = r[4] or 0; self.ilvl[n] = r[5] or 0
         self.hidden[n] = AB:IsHiddenRaw(r); self.class[n] = tonumber(r[11]) or -1; self.src[n] = mask; self.srcText[n] = text
+        self.markedHidden[n]=AB:IsHiddenRaw(r,true)
         self.stats[n] = AB.GetItemStatTotals and AB:GetItemStatTotals(id) or (r[19] or {})
         self.use[n] = UseLevel(id, r); self.armor[n] = (r[7] == 4 and r[8]) or 0; self.wtype[n] = (r[7] == 2 and r[18]) or ""; self.slot[n] = r[3]
         for k = 1, table.getn(targets) do table.insert(self.bySlot[targets[k]], n) end
@@ -219,7 +229,7 @@ function IDX:Query(f)
     elseif minI and ilvl[p] < minI then ok = false
     elseif maxI and ilvl[p] > maxI then ok = false
     elseif maxReq and req[p] > maxReq then ok = false
-    elseif not f.showHidden and hidden[p] then ok = false
+    elseif not f.showHidden and hidden[p] and (not f.availability or self.markedHidden[p]) then ok = false
     elseif src > 0 and not HasBit(srcm[p], src) then ok = false
     elseif armorType and armor[p] ~= armorType then ok = false end
     if ok and cbit then mask = cls[p]; if mask >= 0 and not HasBit(mask, cbit) then ok = false end end
