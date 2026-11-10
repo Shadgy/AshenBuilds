@@ -1,5 +1,5 @@
 AshenBuilds = AshenBuilds or {}
-AshenBuilds.VERSION = "1.0.5"
+AshenBuilds.VERSION = "1.0.6"
 
 AshenBuilds.SLOTS = {
   "HEAD","NECK","SHOULDER","BACK","CHEST","SHIRT","TABARD","WRIST","HANDS","WAIST","LEGS","FEET",
@@ -22,6 +22,20 @@ AshenBuilds.SPECS = {
   Priest={"Discipline","Holy","Shadow","Custom"}, Shaman={"Elemental","Enhancement","Restoration","Custom"},
   Mage={"Arcane","Fire","Frost","Custom"}, Warlock={"Affliction","Demonology","Destruction","Custom"},
   Druid={"Balance","Feral","Restoration","Custom"}
+}
+-- Octo race pages and class-race-combinations, checked 2026-11-10.
+-- BaseStats only contains vanilla rows, so it is not a compatibility matrix.
+AshenBuilds.RACE_CLASSES={
+  Human={Warrior=true,Paladin=true,Hunter=true,Rogue=true,Priest=true,Mage=true,Warlock=true},
+  Dwarf={Warrior=true,Paladin=true,Hunter=true,Rogue=true,Priest=true,Mage=true,Warlock=true},
+  ["Night Elf"]={Warrior=true,Hunter=true,Rogue=true,Priest=true,Druid=true},
+  Gnome={Warrior=true,Hunter=true,Rogue=true,Mage=true,Warlock=true},
+  Orc={Warrior=true,Hunter=true,Rogue=true,Shaman=true,Mage=true,Warlock=true},
+  Tauren={Warrior=true,Hunter=true,Priest=true,Shaman=true,Druid=true},
+  Troll={Warrior=true,Hunter=true,Rogue=true,Priest=true,Shaman=true,Mage=true,Warlock=true},
+  Undead={Warrior=true,Hunter=true,Rogue=true,Priest=true,Mage=true,Warlock=true},
+  ["High Elf"]={Warrior=true,Paladin=true,Hunter=true,Rogue=true,Priest=true,Mage=true},
+  Goblin={Warrior=true,Hunter=true,Rogue=true,Mage=true,Warlock=true}
 }
 AshenBuilds.STAT_LABELS = {
   str="Strength", agi="Agility", sta="Stamina", int="Intellect", spi="Spirit", armor="Armor",
@@ -320,20 +334,86 @@ function AshenBuilds:GetSetCounts(build)
   return counts
 end
 
+local function ProfileClass(value)
+  if AshenBuilds.SPECS[value] then return value end
+  return CLASS_BY_TOKEN[string.upper(tostring(value or ""))]
+end
+local function ProfileRace(value)
+  local token=string.gsub(tostring(value or ""),"%s+","")
+  local known=RACE_BY_TOKEN[token]
+  if known then return known end
+  local lower=string.lower(token); local i,race
+  for i=1,table.getn(AshenBuilds.RACES) do
+    race=AshenBuilds.RACES[i]
+    if string.lower(string.gsub(race,"%s+",""))==lower then return race end
+  end
+end
+local function ProfileHasTalents(build)
+  local points=build and build.talents and build.talents.points
+  local key,rank
+  for key,rank in pairs(type(points)=="table" and points or {}) do
+    if (tonumber(rank) or 0)>0 then return true end
+  end
+  return false
+end
+function AshenBuilds:IsRaceClassAllowed(race,class)
+  local allowed=self.RACE_CLASSES[ProfileRace(race)]
+  return allowed and allowed[ProfileClass(class)] and true or false
+end
+function AshenBuilds:GetProfileOptions(kind)
+  local build=self.current; local out={}
+  if not build then return out end
+  local values=kind=="class" and self.CLASSES or (kind=="race" and self.RACES or (kind=="spec" and self.SPECS[build.class]))
+  local hasTalents=ProfileHasTalents(build)
+  local i,value,reason,found
+  for i=1,table.getn(values or {}) do
+    value=values[i]; reason=nil
+    if kind=="class" then
+      if not self:IsRaceClassAllowed(build.race,value) then reason=value.." is not available for "..tostring(build.race).." on Octo."
+      elseif value~=build.class and hasTalents then reason="Reset talents before changing the build's class." end
+    elseif kind=="race" and not self:IsRaceClassAllowed(value,build.class) then
+      reason=value.." cannot be "..tostring(build.class).." on Octo."
+    end
+    if kind=="spec" and value==build.spec then found=true end
+    table.insert(out,{value=value,text=value,disabled=reason~=nil,reason=reason})
+  end
+  if kind=="spec" and type(build.spec)=="string" and build.spec~="" and not found then
+    table.insert(out,1,{value=build.spec,text=build.spec.." (saved)",disabled=false})
+  end
+  return out
+end
 function AshenBuilds:SetClass(value)
-  if value~=self.current.class and self.GetTalentPointsSpent and self:GetTalentPointsSpent(self.current)>0 then
+  value=ProfileClass(value)
+  if not value then AB_Print("Choose a known class."); return false end
+  if value==self.current.class then return true end
+  if not self:IsRaceClassAllowed(self.current.race,value) then AB_Print("That class is not available for the selected race on Octo."); return false end
+  if ProfileHasTalents(self.current) then
     AB_Print("Reset talents before changing the build's class."); return false
   end
   self.current.class = value; self.current.manual = true
   self.current.spec = self.SPECS[value][1]
   self.current.form=nil
   self.current.updated = time(); self:RefreshUI()
+  return true
 end
-function AshenBuilds:SetRace(value) self.current.race=value; self.current.manual=true; self.current.updated=time(); self:RefreshUI() end
+function AshenBuilds:SetRace(value)
+  value=ProfileRace(value)
+  if not value then AB_Print("Choose a known race."); return false end
+  if value==self.current.race then return true end
+  if not self:IsRaceClassAllowed(value,self.current.class) then AB_Print("That race cannot use the selected class on Octo."); return false end
+  self.current.race=value; self.current.manual=true; self.current.updated=time(); self:RefreshUI()
+  return true
+end
 function AshenBuilds:SetSpec(value)
+  if value==self.current.spec then return true end
+  local allowed=false; local i
+  local specs=self.SPECS[self.current.class] or {}
+  for i=1,table.getn(specs) do if value==specs[i] then allowed=true end end
+  if not allowed then AB_Print("Choose a build option for the selected class."); return false end
   self.current.spec=value
   if self.current.class=="Druid" then self.current.form=value=="Feral" and "bear" or (value=="Balance" and "moonkin" or "humanoid") end
   self.current.updated=time(); self:RefreshUI()
+  return true
 end
 function AshenBuilds:SetLevel(value)
   value=AB_ValidLevel(value)

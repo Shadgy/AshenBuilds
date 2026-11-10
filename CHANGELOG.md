@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.6 — local candidate, not published
+
+- Replace cycling CLASS/RACE/BUILD selectors with direct dropdown choices, preserving their existing pointed art, dimensions and positions.
+- Show unsupported race/class combinations in grey with an explanatory tooltip and reject selection. Include 59 supported pairs from the Octo race pages and additional-combination list.
+- Explain the existing requirement to reset talents before changing class. Selecting the current class/race/build is a no-op and does not reset a custom label.
+- Preserve older incompatible saved/imported plans and show a calculation warning; compatible selections can repair the profile.
+- Add regressions for the user's Paladin 1.0.5 screenshot: 350 Defense, active Block 73%, sheet coverage 102.20 / 102.40%, attacker coverage 99.80 / 100% and a 0.20-point gap.
+- Keep block/Defense calculations and the deferred weapon-skill crit model unchanged. No publication or remote CI was performed.
+
 ## 1.0.5 — local candidate, not published
 
 - Update the main gear panel's **Block (active)** immediately when Holy Shield, Redoubt or Shield Block is selected. Keep passive block separate internally for simulation inputs and show both contributions in the tooltip.

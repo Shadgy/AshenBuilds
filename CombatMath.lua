@@ -160,6 +160,9 @@ function AB:GetCalculationWarnings(build,stats)
   local warnings={}; local i,slot,id,item
   local className=stats.base and stats.base.className or build.class
   local level=stats.base and stats.base.level or self.ValidLevel(build.level)
+  if self.IsRaceClassAllowed and not self:IsRaceClassAllowed(build.race,className) then
+    table.insert(warnings,tostring(build.race).." / "..className.." is not available on Octo. The saved plan is preserved; choose a compatible CLASS or RACE.")
+  end
   for i=1,table.getn(self.SLOTS) do
     slot=self.SLOTS[i]; id=build.items and build.items[slot]; item=id and self:GetItem(id)
     if id and not item then table.insert(warnings,slot..": item #"..id.." is missing from the database; its stats are not counted.") end

@@ -4,7 +4,7 @@
 Based on [Tracer96/AshenBuilds](https://github.com/Tracer96/AshenBuilds), including
 the upstream fixes merged on 2026-09-30. Original addon authorship is preserved below.
 
-Version **1.0.5** is a local maintenance candidate and has not been uploaded to GitHub.
+Version **1.0.6** is a local maintenance candidate and has not been uploaded to GitHub.
 It still needs a game-client smoke check. Earlier candidates are available from
 successful GitHub Actions runs; published releases, when available, appear on this
 fork's Releases page. Extract the single `AshenBuilds` folder into `Interface\AddOns`.
@@ -14,7 +14,19 @@ See [CHANGELOG.md](CHANGELOG.md) for fork changes,
 [maintenance guide](https://github.com/Shadgy/AshenBuilds/blob/main/docs/MAINTENANCE.md)
 for testing and future updates.
 
-### What is new in 1.0.5
+### What is new in 1.0.6
+
+Click **CLASS**, **RACE** or **BUILD** to choose directly from a dropdown. The header
+keeps its existing pointed button art. Unsupported race/class combinations stay
+visible in grey and explain why they cannot be selected. The compatibility matrix
+includes Octo's additional combinations, High Elves and Goblins, rather than only
+vanilla classes. See [race/class notes](docs/RACE-CLASS.md).
+
+Reset allocated talents before switching class; the menu explains this requirement.
+Saved plans with an older unsupported combination remain intact and can be repaired
+through a compatible selection. Choosing the current value does not reset the build.
+
+### Included from 1.0.5
 
 Holy Shield, Redoubt and Shield Block now update **Block (active)** in the main gear
 panel as well as Defense Details. The tooltip separates passive block from the

@@ -8,6 +8,7 @@ local LIST_ROWS, ROW_H = 16, 18
 local list, catcher
 
 local function CloseDropdown()
+  if list and list:IsShown() then GameTooltip:Hide() end
   if list then list:Hide(); list.owner = nil end
   if catcher then catcher:Hide() end
 end
@@ -21,12 +22,18 @@ local function RenderList()
     row = list.rows[i]; entry = items[list.offset + i]
     if entry then
       row.value = entry.value
+      row.disabled = entry.disabled==true or entry.disabled==1
+      row.reason = entry.reason
       row.text:SetText(entry.text)
-      c = entry.color or {1, 1, 1}; row.text:SetTextColor(c[1], c[2], c[3])
+      -- Keep mouse hover available so unavailable choices can explain why.
+      row:Enable()
+      if row.disabled then c={.45,.45,.45} else c=entry.color or {1,1,1} end
+      row.text:SetTextColor(c[1], c[2], c[3])
+      local highlight=row:GetHighlightTexture(); if highlight then highlight:SetAlpha(row.disabled and 0 or 1) end
       if opts.isChecked and opts.isChecked(entry.value) then row.check:Show() else row.check:Hide() end
       row:Show()
     else
-      row.value = nil; row:Hide()
+      row.value = nil; row.disabled=nil; row.reason=nil; row:Hide()
     end
   end
   local total = table.getn(items)
@@ -56,11 +63,18 @@ local function CreateList()
     r.check:SetWidth(16); r.check:SetHeight(16); r.check:SetPoint("LEFT", r, "LEFT", 2, 0)
     r.text = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall"); r.text:SetPoint("LEFT", r, "LEFT", 20, 0); r.text:SetPoint("RIGHT", r, "RIGHT", -4, 0); r.text:SetJustifyH("LEFT")
     r:SetScript("OnClick", function()
-      local owner = list.owner; if not owner or this.value == nil then return end
+      local owner = list.owner; if not owner or this.value == nil or this.disabled then return end
       owner.opts.onSelect(this.value)
       owner:Refresh()
       if owner.opts.multi then RenderList() else CloseDropdown() end
     end)
+    r:SetScript("OnEnter",function()
+      if this.disabled and this.reason then
+        GameTooltip:SetOwner(this,"ANCHOR_RIGHT"); GameTooltip:SetText(this.text:GetText(),1,.82,.28)
+        GameTooltip:AddLine(this.reason,.75,.75,.75,true); GameTooltip:Show()
+      end
+    end)
+    r:SetScript("OnLeave",function() GameTooltip:Hide() end)
     list.rows[i] = r
   end
   list.more = list:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall"); list.more:SetPoint("BOTTOM", list, "BOTTOM", 0, 5)
@@ -87,7 +101,27 @@ function AB:OpenDropdown(owner)
   catcher:Show(); list:Show()
 end
 
--- opts: items() -> {{value=,text=,color=},...}; getText() -> label; onSelect(value);
+-- Bind the shared list to a button without changing its existing art or geometry.
+function AB:BindDropdown(button,opts,writeText)
+  button.opts=opts
+  button.Refresh=function(self)
+    local text=self.opts.getText()
+    if writeText then writeText(self,text) else self:SetText(text) end
+    if self.opts.refreshOpen and list and list.owner==self and list:IsShown() then
+      list.items=self.opts.items() or {}; list.offset=0
+      local count=table.getn(list.items)
+      list:SetHeight(math.min(count,LIST_ROWS)*ROW_H+10+(count>LIST_ROWS and 16 or 0))
+      RenderList()
+    end
+  end
+  button:SetScript("OnClick",function()
+    if list and list.owner==this and list:IsShown() then CloseDropdown() else AB:OpenDropdown(this) end
+  end)
+  button:Refresh()
+  return button
+end
+
+-- opts: items() -> {{value=,text=,color=,disabled=,reason=},...}; getText() -> label; onSelect(value);
 -- isChecked(value) -> bool; multi=true keeps the list open for several picks.
 function AB:CreateDropdown(parent, width, opts)
   local b = CreateFrame("Button", nil, parent); b:SetWidth(width); b:SetHeight(24)
@@ -97,11 +131,7 @@ function AB:CreateDropdown(parent, width, opts)
   b.arrow = b:CreateTexture(nil, "OVERLAY"); b.arrow:SetTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up")
   b.arrow:SetWidth(18); b.arrow:SetHeight(18); b.arrow:SetPoint("RIGHT", b, "RIGHT", -3, 0)
   b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
-  b.opts = opts
-  b.Refresh = function(self) self.text:SetText(self.opts.getText()) end
-  b:SetScript("OnClick", function() if list and list.owner == this and list:IsShown() then CloseDropdown() else AB:OpenDropdown(this) end end)
-  b:Refresh()
-  return b
+  return self:BindDropdown(b,opts,function(button,text) button.text:SetText(text) end)
 end
 
 -- Small caption above a control.

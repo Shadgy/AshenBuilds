@@ -9,6 +9,12 @@ check("screenshot preserves individual sheet probabilities",Near(screenshot.shee
 check("screenshot displays sheet94.12 against102.4",Near(screenshot.sheetCoverage,94.12) and Near(screenshot.sheetCap,102.4))
 check("screenshot effective boss probabilities remain unchanged",Near(screenshot.miss,6.08) and Near(screenshot.dodge,6.48) and Near(screenshot.parry,11.08) and Near(screenshot.block,68.08) and Near(screenshot.rawCoverage,91.72))
 check("screenshot both conventions leave8.28 points",Near(screenshot.capGap,8.28) and Near(screenshot.sheetGap,8.28))
+local paladinTest={base={level=60},defense=350,dodge=9.2,parry=13,block=13,canParry=true,canBlock=true}
+local tested=A:CalculateDefenseTable(paladinTest,63,60)
+check("1.0.5 Paladin screenshot350Defense gives6.4bossmiss",Near(tested.miss,6.4) and Near(tested.sheetMiss,7))
+check("1.0.5 active73sheetblock becomes72.4againstboss",Near(tested.sheetBlock,73) and Near(tested.block,72.4))
+check("1.0.5 Paladin coverage102.2maps99.8",Near(tested.sheetCoverage,102.2) and Near(tested.sheetCap,102.4) and Near(tested.rawCoverage,99.8))
+check("1.0.5 Paladin has0.2gap and0.2crit left",Near(tested.capGap,0.2) and Near(tested.sheetGap,0.2) and Near(tested.crit,0.2) and Near(tested.crushing,0))
 for target=60,63 do
   local t=A:CalculateDefenseTable(Stats(),target,60)
   check("level"..target.." sheet cap matches four eligible categories",Near(t.sheetCap,100+(target-60)*0.8))

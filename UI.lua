@@ -48,7 +48,6 @@ function AB:SetupWindow(frame,opts)
   frame:EnableMouseWheel(true); frame:SetScript("OnMouseWheel",opts.wheel or function() end)
   tinsert(UISpecialFrames,frame:GetName())
 end
-local function Cycle(list,current,delta) local i=AB.IndexOf(list,current)+delta; if i<1 then i=table.getn(list) elseif i>table.getn(list) then i=1 end; return list[i] end
 local function F(n) if not n then return "0" end if math.floor(n)==n then return tostring(n) end return string.format("%.2f",n) end
 local function Section(parent,title,y)
   local g=AB.THEME.gold
@@ -185,13 +184,16 @@ function AB:CreateUI()
   nameBox:SetScript("OnTextChanged",function() if AB.current then AB.current.name=this:GetText() end end)
 
   local g=AB.THEME.gold
-  local function Profile(label,x,w,listFn,getFn,setFn)
+  local function Profile(label,x,w,kind,getFn,setFn)
     local fs=f:CreateFontString(nil,"OVERLAY","GameFontNormalSmall"); fs:SetPoint("TOPLEFT",f,"TOPLEFT",x,-82); fs:SetText(label); fs:SetTextColor(g[1],g[2],g[3])
-    local b=MakeButton(f,"",w,22); AB:SkinButton(b,"cycle"); b:SetPoint("TOPLEFT",f,"TOPLEFT",x,-98); b:RegisterForClicks("LeftButtonUp","RightButtonUp"); b:SetScript("OnClick",function() setFn(Cycle(listFn(),getFn(),arg1=="RightButton" and -1 or 1)) end); return b
+    local b=MakeButton(f,"",w,22); AB:SkinButton(b,"cycle"); b:SetPoint("TOPLEFT",f,"TOPLEFT",x,-98)
+    b:RegisterForClicks("LeftButtonUp","RightButtonUp")
+    return AB:BindDropdown(b,{items=function() return AB:GetProfileOptions(kind) end,getText=getFn,
+      isChecked=function(v) return getFn()==v end,onSelect=setFn,listWidth=170,refreshOpen=true})
   end
-  self.classButton=Profile("CLASS",24,105,function() return AB.CLASSES end,function() return AB.current.class end,function(v) AB:SetClass(v) end)
-  self.raceButton=Profile("RACE",136,105,function() return AB.RACES end,function() return AB.current.race end,function(v) AB:SetRace(v) end)
-  self.specButton=Profile("BUILD",248,125,function() return AB.SPECS[AB.current.class] end,function() return AB.current.spec end,function(v) AB:SetSpec(v) end)
+  self.classButton=Profile("CLASS",24,105,"class",function() return AB.current.class end,function(v) AB:SetClass(v) end)
+  self.raceButton=Profile("RACE",136,105,"race",function() return AB.current.race end,function(v) AB:SetRace(v) end)
+  self.specButton=Profile("BUILD",248,125,"spec",function() return AB.current.spec end,function(v) AB:SetSpec(v) end)
   local lf=f:CreateFontString(nil,"OVERLAY","GameFontNormalSmall"); lf:SetPoint("TOPLEFT",f,"TOPLEFT",380,-82); lf:SetText("LEVEL"); lf:SetTextColor(g[1],g[2],g[3])
   local level=CreateFrame("EditBox","AshenBuildsLevelBox",f,"InputBoxTemplate"); level:SetWidth(42); level:SetHeight(22); level:SetPoint("TOPLEFT",f,"TOPLEFT",380,-98); level:SetNumeric(true); level:SetMaxLetters(2); level:SetAutoFocus(false); level:SetScript("OnEnterPressed",function() AB:SetLevel(this:GetText()); this:ClearFocus() end); level:SetScript("OnEditFocusLost",function() AB:SetLevel(this:GetText()) end); self.levelBox=level
   local quest=self:CreateCheck(f,"Weapon skill quest +5",function(v)
@@ -541,7 +543,7 @@ function AB:RefreshUI()
   if self.saveStateText then
     if self.current.savedName then self.saveStateText:SetText("|cff7fd97fChanges save automatically|r") else self.saveStateText:SetText("|cffffb347Not saved yet - press Save|r") end
   end
-  self.nameBox:SetText(self.current.name or "New Build"); self.classButton:SetText(self.current.class); self.raceButton:SetText(self.current.race); self.specButton:SetText(self.current.spec); self.levelBox:SetText(self:GetBuildLevel())
+  self.nameBox:SetText(self.current.name or "New Build"); self.classButton:Refresh(); self.raceButton:Refresh(); self.specButton:Refresh(); self.levelBox:SetText(self:GetBuildLevel())
   self:RefreshWeaponSkillQuestControls()
   local slot,b,id,item,c,enchant
   local muted=AB.THEME.muted

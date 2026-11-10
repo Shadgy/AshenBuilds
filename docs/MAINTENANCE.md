@@ -1,5 +1,36 @@
 # Maintaining this fork
 
+## Current local status — 2026-11-10
+
+Status: **w weryfikacji**. Local candidate **1.0.6** adds direct profile dropdowns
+and a sourced Octo race/class compatibility matrix. Install only the local package
+in `D:\Games\Octo-clean\Interface\AddOns\AshenBuilds` for client validation.
+
+- The user reports testing 1.0.5 on Paladin and Warrior. The supplied Paladin
+  screenshot is internally consistent: 350 Defense, active Block 73%, coverage
+  102.20 / 102.40% (sheet), 99.80 / 100% (attacker-adjusted), gap 0.20 points.
+  No Warrior screenshot/numeric results have yet been supplied for checking.
+- The Paladin screenshot's BV 74 is consistent with shield 33135's native 48,
+  Strength 206 and a 30% BV talent, provided no other BV contribution applies.
+  This is an arithmetic consistency check, not an independent native-character
+  comparison or proof of every item/talent value.
+- Priorities are native shield Block Value, Defense contributions, active
+  Holy Shield/Redoubt/Shield Block in the main gear panel, both coverage
+  conventions and save/load. The checklist and 102.4% / 100% example are in
+  `DEFENSE-COVERAGE.md` and `TESTING-1.0.2.md` (updated for 1.0.5).
+- The previous 1.0.5 candidate passed 560 addon assertions, 26 release-tooling
+  tests, Lua 5.0 API lint, independent review and a geometry preview. Validate
+  the new profile menus separately before describing 1.0.6 as client-tested.
+  Local Lua 5.0 compilation is unavailable; offline checks do not replace Octo.
+- Local 1.0.6 validation passed 634 addon assertions and 26 release-tooling tests,
+  plus manifest/API lint, independent review and menu geometry/color previews.
+- Keep the current weapon-skill crit model: +0.20 percentage points per +5
+  skill. Its Octo verification remains unresolved and the user explicitly
+  deferred that check. Do not mark the coefficient as Octo-verified.
+- Publication is not authorized. Keep changes local; do not push branches,
+  open a PR, start remote CI or create/publish a release without a later
+  explicit instruction from the user.
+
 ## Development setup
 
 Use Python 3.12 or newer. From the repository root:
