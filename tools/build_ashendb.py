@@ -119,6 +119,7 @@ def export(db_path: Path, addon: Path, db_version: str, shard_size=750):
           "bind":int(getcol(r,"bonding",default=0) or 0),"unique":int(getcol(r,"max_count","maxcount",default=0) or 0),
           "delay":int(getcol(r,"delay",default=0) or 0),"dmin":float(getcol(r,"dmg_min1",default=0) or 0),
           "dmax":float(getcol(r,"dmg_max1",default=0) or 0),"weapon":weapon_type(r),
+          "shieldBlock":getcol(r,"block",default=None) if inv == 14 else None,
           "stats":stats.get(iid,{}),"sources":sources.get(iid,[])
         }
         items.append(item)
@@ -136,8 +137,9 @@ def export(db_path: Path, addon: Path, db_version: str, shard_size=750):
             for x in shard:
                 st="{"+",".join(f"{k}={v:g}" for k,v in sorted(x["stats"].items()))+"}"
                 src="{"+",".join(lua_str(s) for s in x["sources"])+"}"
-                # compact positional format: name,q,slot,req,ilvl,icon,class,subclass,armor,set,classMask,raceMask,bind,unique,delay,dmin,dmax,weapon,stats,sources
-                f.write(f'I[{x["id"]}]={{{lua_str(x["name"])},{x["quality"]},{lua_str(x["slot"])},{x["req"]},{x["ilvl"]},{lua_str(x["icon"])},{x["class"]},{x["subclass"]},{x["armor"]},{x["set"]},{x["allowClass"]},{x["allowRace"]},{x["bind"]},{x["unique"]},{x["delay"]},{x["dmin"]:g},{x["dmax"]:g},{lua_str(x["weapon"])},{st},{src}}}\n')
+                # Field 21 retains native shield block, separate from block chance and Equip bonuses.
+                native_block = "nil" if x["shieldBlock"] is None else str(int(x["shieldBlock"]))
+                f.write(f'I[{x["id"]}]={{{lua_str(x["name"])},{x["quality"]},{lua_str(x["slot"])},{x["req"]},{x["ilvl"]},{lua_str(x["icon"])},{x["class"]},{x["subclass"]},{x["armor"]},{x["set"]},{x["allowClass"]},{x["allowRace"]},{x["bind"]},{x["unique"]},{x["delay"]},{x["dmin"]:g},{x["dmax"]:g},{lua_str(x["weapon"])},{st},{src},{native_block}}}\n')
                 order.append(x["id"])
     order_file=addon/"Data"/"ItemOrder.lua"; toc_lines.append("Data/ItemOrder.lua")
     with order_file.open("w",encoding="utf-8",newline="\n") as f:

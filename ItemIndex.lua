@@ -89,13 +89,6 @@ local function SourceInfo(id, r)
   return mask, string.lower(table.concat(words, " "))
 end
 
-local HIDDEN_WORDS = {"TEST", "OLD", "DEPRECATED", "UNUSED", "PLACEHOLDER", "INTERNAL", "DEBUG", "GAMEMASTER", "GM ONLY", "QA ", "NPC ONLY"}
-local function IsHidden(name)
-  local n = string.upper(name or ""); local i
-  for i = 1, table.getn(HIDDEN_WORDS) do if string.find(n, HIDDEN_WORDS[i], 1, true) then return true end end
-  return false
-end
-
 -- Planner slots each raw item slot can go into ("ALL" collects every equippable item).
 local SLOT_TARGETS = {}
 local function TargetsFor(rawSlot)
@@ -119,6 +112,7 @@ local function Reset()
   local i; for i = 1, table.getn(AB.SLOTS) do IDX.bySlot[AB.SLOTS[i]] = {} end
 end
 Reset()
+function IDX:Reset() Reset() end
 
 local function SortBuckets()
   local ilvl, name = IDX.ilvl, IDX.name
@@ -142,7 +136,8 @@ function IDX:Step(budget)
         n = self.n + 1; self.n = n
         mask, text = SourceInfo(id, r)
         self.id[n] = id; self.name[n] = string.lower(r[1] or ""); self.q[n] = r[2] or 1; self.req[n] = r[4] or 0; self.ilvl[n] = r[5] or 0
-        self.hidden[n] = IsHidden(r[1]); self.class[n] = tonumber(r[11]) or -1; self.src[n] = mask; self.srcText[n] = text; self.stats[n] = r[19] or {}
+        self.hidden[n] = AB:IsHiddenRaw(r); self.class[n] = tonumber(r[11]) or -1; self.src[n] = mask; self.srcText[n] = text
+        self.stats[n] = AB.GetItemStatTotals and AB:GetItemStatTotals(id) or (r[19] or {})
         self.use[n] = UseLevel(id, r); self.armor[n] = (r[7] == 4 and r[8]) or 0; self.wtype[n] = (r[7] == 2 and r[18]) or ""; self.slot[n] = r[3]
         for k = 1, table.getn(targets) do table.insert(self.bySlot[targets[k]], n) end
         table.insert(self.bySlot.ALL, n)
@@ -200,7 +195,7 @@ AB.ArmorProficiency, AB.WeaponProficiency = ARMOR_PROF, WEAPON_PROF
 
 local CLASS_BITS = {Warrior = 1, Paladin = 2, Hunter = 4, Rogue = 8, Priest = 16, Shaman = 64, Mage = 128, Warlock = 256, Druid = 1024}
 local STAT_ALIASES = {strength = "str", agility = "agi", stamina = "sta", intellect = "int", spirit = "spi", crit = "crit", hit = "hit",
-  healing = "healing", spell = "spellPower", defense = "defense", dodge = "dodge", parry = "parry", block = "block", haste = "haste", armor = "armor"}
+  healing = "healing", spell = "spellPower", defense = "defense", dodge = "dodge", parry = "parry", block = "block", blockvalue = "blockValue", ["block value"] = "blockValue", haste = "haste", armor = "armor"}
 
 -- f = {slot, query, quality (-1 any), minIlvl, maxIlvl, source (bit, 0 any), stats = {{key,min},...},
 --      maxReq (nil any), class (nil any), level (proficiency level, nil any), armor (subclass, nil any),
@@ -229,6 +224,10 @@ function IDX:Query(f)
     elseif armorType and armor[p] ~= armorType then ok = false end
     if ok and cbit then mask = cls[p]; if mask >= 0 and not HasBit(mask, cbit) then ok = false end end
     if ok and cbit and not self:Proficient(p, f.class, level, slot) then ok = false end
+    if ok and f.availability and AB.GetItemAvailability then
+      local result=AB:GetItemAvailability(self.id[p],f.availability)
+      if not AB:MatchesAvailability(result,f.availability,f.showHidden) or not AB:MatchesContentInstances(result,f.availability) then ok=false end
+    end
     if ok and nStats > 0 then
       st = stats[p]
       for j = 1, nStats do v = st[statList[j][1]]; if not v or v <= 0 or v < (statList[j][2] or 0) then ok = false; break end end

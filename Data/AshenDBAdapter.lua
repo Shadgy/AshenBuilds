@@ -29,6 +29,18 @@ function AshenBuilds:GetRawItem(id)
   return AshenDB and AshenDB.Items and AshenDB.Items[tonumber(id)]
 end
 
+-- Field 21 is present in new exports; older catalogs use the sourced supplement.
+-- nil/false means unknown, while 0/true is a verified zero in the source database.
+function AshenBuilds:GetNativeShieldBlockValue(id, raw)
+  local r=raw or self:GetRawItem(id)
+  if not r or r[3]~="SHIELD" then return nil,false end
+  local value=tonumber(r[21])
+  if value and value>=0 then return value,true,"record" end
+  value=self.ShieldBaseBlock and self.ShieldBaseBlock[tonumber(id)]
+  if type(value)=="number" and value>=0 then return value,true,(self.ShieldBlockMeta and self.ShieldBlockMeta.sourceVersion) end
+  return nil,false
+end
+
 function AshenBuilds:GetItem(id)
   id = tonumber(id)
   if not id then return nil end
@@ -37,6 +49,7 @@ function AshenBuilds:GetItem(id)
   if not r then return nil end
   local weaponType, twoHand = WeaponInfo(r[18])
   local sources = r[20] or {}
+  local baseBlock,blockKnown,blockSource=self:GetNativeShieldBlockValue(id,r)
   local item = {
     id=id, n=r[1] or ("Item "..id), q=r[2] or 1, slot=r[3], req=r[4] or 0, ilvl=r[5] or 0,
     icon=IconPath(r[6]), itemClass=r[7] or 0, subclass=r[8] or 0, armor=r[9] or 0,
@@ -44,6 +57,7 @@ function AshenBuilds:GetItem(id)
     bind=r[13] or 0, unique=r[14] or 0, speed=(r[15] or 0)/1000, minDamage=r[16] or 0,
     maxDamage=r[17] or 0, weaponType=weaponType, twoHand=twoHand,
     shield=(r[3] == "SHIELD"), stats=r[19] or {}, sources=sources,
+    shieldBaseBlockValue=baseBlock,shieldBlockKnown=blockKnown,shieldBlockSource=blockSource,
     source=table.concat(sources, ", ")
   }
   CACHE[id] = item
@@ -91,10 +105,14 @@ end
 
 function AshenBuilds:IsHiddenRaw(r)
   if not r then return true end
-  local n=string.upper(r[1] or "")
-  local bad={"TEST","OLD","DEPRECATED","UNUSED","PLACEHOLDER","INTERNAL","DEBUG","GAMEMASTER","GM ONLY","QA ","NPC ONLY"}
-  local i
-  for i=1,table.getn(bad) do if string.find(n,bad[i],1,true) then return true end end
+  local name=r[1] or ""; local n=string.upper(name); local i,word
+  for i=1,table.getn(r[20] or {}) do if r[20][i]=="unobtainable" then return true end end
+  -- Match explicit markers, never fragments inside GOLD, COLD or SMOLDERING.
+  if string.find(name,"^%s*OLD[%s_:%-]") or string.find(n,"%[OLD%]") or string.find(n,"%[PH%]") then return true end
+  if string.find(n,"^%s*MONSTER[%s_:%-]") or string.find(n,"^%s*ZZZZ") or string.find(n,"^%s*QA[%s_:%-]") then return true end
+  if string.find(n,"GM%s+ONLY") or string.find(n,"NPC%s+ONLY") then return true end
+  local bad={TEST=true,DEPRECATED=true,UNUSED=true,PLACEHOLDER=true,INTERNAL=true,DEBUG=true,GAMEMASTER=true}
+  for word in string.gfind(n,"%a+") do if bad[word] then return true end end
   return false
 end
 

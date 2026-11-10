@@ -4,7 +4,7 @@
 Based on [Tracer96/AshenBuilds](https://github.com/Tracer96/AshenBuilds), including
 the upstream fixes merged on 2026-09-30. Original addon authorship is preserved below.
 
-Version **1.0.1** is the initial maintenance candidate. Install a ZIP from this fork's
+Version **1.0.2** is the current maintenance candidate. Install a ZIP from this fork's
 Releases page when one is published; candidate ZIPs are available from successful
 GitHub Actions runs. A candidate has passed offline checks but still needs a game-client
 smoke check. Extract the single `AshenBuilds` folder into `Interface\AddOns`.
@@ -13,6 +13,25 @@ See [CHANGELOG.md](CHANGELOG.md) for fork changes,
 [UPSTREAM.md](UPSTREAM.md) for provenance and
 [maintenance guide](https://github.com/Shadgy/AshenBuilds/blob/main/docs/MAINTENANCE.md)
 for testing and future updates.
+
+### What is new in 1.0.2
+
+- Native shield Block Value, shield talents and permanent set statistics are included in totals.
+- **Details...** in the DEFENSE panel shows incoming miss, dodge, parry, block, avoidance,
+  attack-table coverage and remaining coverage gap against the chosen attacker level.
+  Holy Shield, Redoubt and Shield Block can be previewed explicitly; a learned active
+  ability no longer counts as a permanent bonus.
+- Both pickers have an **Octo: phase 2** button for content settings: server profile,
+  phase, multiple acquisition instances, future content and unverified sources.
+- Item filters and sorting include **Block Value**, using the same numeric item totals
+  as the planner. Saved builds retain items and enchants excluded by browsing filters.
+- Shared saved builds are protected against stale character snapshots, and equipment
+  import replaces obsolete gear/enchants while preserving unrecognized IDs as warnings.
+
+The source map supplements the embedded catalog with a recorded Tortoise snapshot and
+Octo's roadmap. It is not a claim that every database entry is obtainable on Octo.
+Unresolved routes remain marked as unverified. See the [1.0.2 testing guide](https://github.com/Shadgy/AshenBuilds/blob/main/docs/TESTING-1.0.2.md)
+for installation checks and model limits.
 
 An all-class gear and talent planner for **Turtle WoW** (1.12 client), by The Ashen Banner & Claude AI
 

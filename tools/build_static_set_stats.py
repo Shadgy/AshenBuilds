@@ -1,0 +1,131 @@
+"""Export conservative, permanent numeric set bonuses from a Tortoise snapshot."""
+import argparse
+import hashlib
+import json
+from pathlib import Path
+import re
+import sqlite3
+
+
+ROOT=Path(__file__).resolve().parents[1]
+PRIMARY={0:"str",1:"agi",2:"sta",3:"int",4:"spi"}
+RESISTS={1:"bonusArmor",4:"fireRes",8:"natureRes",16:"frostRes",32:"shadowRes",64:"arcaneRes"}
+DIRECT={47:"parry",49:"dodge",51:"block",52:"crit",54:"hit",55:"spellHit",57:"spellCrit",158:"blockValue"}
+CONDITIONAL=re.compile(r"\b(?:when(?:ever)?|while|after|until|if|stance|forms?|pet|stacks?|proc|periodic)\b|\bin combat\b",re.I)
+
+
+def spell_stats(row):
+    """Return known static fields and any excluded modifier; reject conditional spells wholly."""
+    if row is None:
+        return None,"spell missing from snapshot"
+    if row["duration_ms"]!=-1 or row["class_mask"] not in (0,None):
+        return None,"duration or class restrictions"
+    if row["proc_chance"]!=101 or not (int(row["attr"] or 0)&64):
+        return None,"not an unconditional passive"
+    if CONDITIONAL.search((row["name"] or "")+" "+(row["description"] or "")):
+        return None,"conditional, form or triggered effect"
+    try:
+        effects=json.loads(row["effects"] or "[]")
+    except (ValueError,TypeError):
+        return None,"invalid effect data"
+    if not effects:
+        return None,"no numeric aura effects"
+    stats={}; unhandled=[]
+    melee_ap=ranged_ap=0
+    def add(key,value):
+        stats[key]=stats.get(key,0)+value
+    for effect in effects:
+        aura,misc,value=effect.get("aura"),effect.get("misc"),effect.get("value")
+        if (effect.get("effect")!=6 or effect.get("period",0)!=0 or effect.get("radius") not in (None,0)
+                or not isinstance(value,(int,float)) or isinstance(value,bool) or value!=int(value)):
+            return None,"nonconstant or non-self aura"
+        if aura==29 and misc in PRIMARY:
+            add(PRIMARY[misc],value)
+        elif aura==29 and misc==-1:
+            for key in PRIMARY.values():add(key,value)
+        elif aura in (30,98) and misc==95:
+            add("defense",value)
+        elif aura==22 and isinstance(misc,int) and misc>0 and misc&~127==0 and (not misc&2 or misc==126):
+            for bit,key in RESISTS.items():
+                if misc&bit:add(key,value)
+        elif aura in DIRECT and misc==0:
+            add(DIRECT[aura],value)
+        elif aura==71 and misc==126:
+            add("spellCrit",value)
+        elif aura==13 and misc==126:
+            add("spellPower",value)
+        elif aura==135 and misc==126:
+            add("healing",value)
+        elif aura==85 and misc==0:
+            add("mp5",value)
+        elif aura==34 and misc==0:
+            add("health",value)
+        elif aura==35 and misc==0:
+            add("mana",value)
+        elif aura==99 and misc==0:
+            melee_ap+=value
+        elif aura==124 and misc==0:
+            ranged_ap+=value
+        else:
+            unhandled.append("unsupported aura "+str(aura)+" / scope "+str(misc))
+    # The planner's ap contributes to both attack types; rap is the ranged-only excess.
+    if melee_ap and ranged_ap<melee_ap:
+        unhandled.append("melee-only attack power needs separate handling")
+        melee_ap=ranged_ap=0
+    if melee_ap:add("ap",melee_ap)
+    if ranged_ap>melee_ap:add("rap",ranged_ap-melee_ap)
+    stats={key:value for key,value in stats.items() if value}
+    if not stats:
+        return None,"; ".join(unhandled) or "no supported nonzero static stats"
+    return stats,"; ".join(unhandled) or None
+
+
+def build(database,catalog,output):
+    database,catalog,output=Path(database).resolve(),Path(catalog),Path(output)
+    if not database.is_file():raise ValueError("Input database does not exist")
+    digest=hashlib.sha256(database.read_bytes()).hexdigest()
+    catalog_text=catalog.read_text(encoding="utf-8")
+    bonus_ids={int(m.group(2)) for m in re.finditer(r'\{(\d+),(\d+),"(?:[^"\\]|\\.)*"\}',catalog_text)}
+    if not bonus_ids:raise ValueError("No set bonus spell IDs found in catalog")
+    connection=sqlite3.connect(database.as_uri()+"?mode=ro",uri=True)
+    connection.row_factory=sqlite3.Row
+    mapped,unhandled={},{}
+    try:
+        for spell in sorted(bonus_ids):
+            stats,reason=spell_stats(connection.execute("select * from spells where entry=?",(spell,)).fetchone())
+            if stats:mapped[spell]=stats
+            if reason:unhandled[spell]=reason
+    finally:
+        connection.close()
+    metadata={"source":"Tortoise-WoW","sourceVersion":digest[:12],"sqliteSha256":digest,
+              "catalogSha256":hashlib.sha256(catalog_text.encode("utf-8")).hexdigest(),
+              "count":len(mapped),"bonusSpellCount":len(bonus_ids),"unhandledCount":len(unhandled),
+              "partialCount":len(set(mapped)&set(unhandled))}
+    lua=lambda value:json.dumps(value,ensure_ascii=True)
+    lines=["-- Known permanent numeric set auras; procs and conditional spells are excluded entirely.",
+           "-- Generated by tools/build_static_set_stats.py; see docs/data-sources-1.0.2.md.",
+           "AshenBuilds = AshenBuilds or {}",
+           "AshenBuilds.StaticSetStatsMeta={"+",".join(key+"="+(str(value) if isinstance(value,int) else lua(value)) for key,value in sorted(metadata.items()))+"}",
+           "AshenBuilds.StaticSetStats={"]
+    for spell,stats in sorted(mapped.items()):
+        lines.append("  ["+str(spell)+"]={"+",".join(key+"="+str(value) for key,value in sorted(stats.items()))+"},")
+    lines.extend(["}","AshenBuilds.StaticSetStatsUnhandled={"])
+    lines.extend("  ["+str(spell)+"]="+lua(reason)+"," for spell,reason in sorted(unhandled.items()))
+    lines.append("}")
+    output.parent.mkdir(parents=True,exist_ok=True)
+    output.write_text("\n".join(lines)+"\n",encoding="utf-8",newline="\n")
+    return metadata
+
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--database",type=Path,required=True)
+    parser.add_argument("--catalog",type=Path,default=ROOT/"Data/SetCatalog.lua")
+    parser.add_argument("--output",type=Path,default=ROOT/"Data/StaticSetStats.lua")
+    args=parser.parse_args()
+    try:metadata=build(args.database,args.catalog,args.output)
+    except (ValueError,OSError,sqlite3.DatabaseError) as exc:parser.error(str(exc))
+    print("Exported",metadata["count"],"static set spells;",metadata["partialCount"],"partial;",metadata["unhandledCount"],"with unhandled modifiers")
+
+
+if __name__=="__main__":main()

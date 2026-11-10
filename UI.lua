@@ -206,6 +206,7 @@ function AB:CreateUI()
   scroll:EnableMouseWheel(true); scroll:SetScript("OnMouseWheel",function() local cur=this:GetVerticalScroll() or 0; local max=this:GetVerticalScrollRange() or 0; cur=cur-(arg1*28); if cur<0 then cur=0 elseif cur>max then cur=max end; this:SetVerticalScroll(cur) end)
 
   self:CreateBuildBrowser(); self:CreateItemBrowser(); self:CreateSourcePanel(); self:CreateEnchantBrowser(); self:CreateCodeDialog()
+  self:CreateAvailabilityBrowser(); self:CreateDefenseBrowser()
   self:SetStatsView("totals"); self:RefreshUI()
 end
 
@@ -463,7 +464,7 @@ function AB:SetStatsView(view)
 end
 
 function AB:ShowSlotTooltip(button)
-  local id=self.current.items[button.slot] or 0; if id>0 then self:ShowItemTooltip(button,id); local e=AshenBuildsEnchants[self.current.enchants[button.slot] or 0]; if e then GameTooltip:AddLine(" "); GameTooltip:AddLine("Enchanted: "..e.n,0.1,1,0.1); local sum=self:StatSummary(e.stats); if sum=="" then sum=e.tip or "" end; if sum~="" then GameTooltip:AddLine(sum,0.1,1,0.1,true) end; GameTooltip:Show() end else GameTooltip:SetOwner(button,"ANCHOR_RIGHT"); GameTooltip:SetText(self.SLOT_LABELS[button.slot].." - Empty",.6,.65,.75); GameTooltip:AddLine("Click to choose an item",1,1,1); GameTooltip:Show() end
+  local id=self.current.items[button.slot] or 0; if id>0 then self:ShowItemTooltip(button,id); local eid=self.current.enchants[button.slot] or 0; local e=AshenBuildsEnchants[eid]; if e then GameTooltip:AddLine(" "); GameTooltip:AddLine("Enchanted: "..e.n,0.1,1,0.1); local sum=self:StatSummary(e.stats); if sum=="" then sum=e.tip or "" end; if sum~="" then GameTooltip:AddLine(sum,0.1,1,0.1,true) end; self:AddAvailabilityTooltip(self:GetEnchantAvailability(eid)); GameTooltip:Show() end else GameTooltip:SetOwner(button,"ANCHOR_RIGHT"); GameTooltip:SetText(self.SLOT_LABELS[button.slot].." - Empty",.6,.65,.75); GameTooltip:AddLine("Click to choose an item",1,1,1); GameTooltip:Show() end
 end
 
 function AB:RefreshUI()
@@ -554,6 +555,7 @@ function AB:RefreshStats()
   step=17; y=-34; Row(4,"Spell Power",d.spellPower,false,"spellPower"); Row(4,"Healing",d.healing,false,"healing"); Row(4,"Spell Crit",d.spellCrit,true,"spellCrit"); Row(4,"Spell Hit",d.spellHit,true,"spellHit"); Row(4,"MP5 (items)",d.mp5); if d.spiritRegen and d.spiritRegen>0 then Row(4,"MP5 (spirit, not casting)",d.spiritRegen,false,"spiritRegen") end
   step=17; y=-34; Row(5,"Defense",d.defense,false,"defense"); Row(5,"Dodge",d.dodge,true,"dodge"); Row(5,"Parry",d.parry,true,"parry"); Row(5,"Block",d.block,true,"block"); Row(5,"Block Value",d.blockValue,false,"blockValue")
   step=17; y=-34; Row(6,"Fire",d.resistances.fire); Row(6,"Frost",d.resistances.frost); Row(6,"Nature",d.resistances.nature); Row(6,"Shadow",d.resistances.shadow); Row(6,"Arcane",d.resistances.arcane)
+  if self.defenseBrowser and self.defenseBrowser:IsShown() then self:RefreshDefenseBrowser(d) end
 end
 
 -- The set panel collapses to one line (and the window shrinks) when no set pieces are equipped.
@@ -660,8 +662,8 @@ local ITEM_ROWS=12
 local SLOT_FILTERS={{"ALL","All Slots"},{"HEAD","Head"},{"NECK","Neck"},{"SHOULDER","Shoulder"},{"BACK","Back"},{"CHEST","Chest"},{"SHIRT","Shirt"},{"TABARD","Tabard"},{"WRIST","Wrist"},{"HANDS","Hands"},{"WAIST","Waist"},{"LEGS","Legs"},{"FEET","Feet"},{"FINGER1","Ring"},{"TRINKET1","Trinket"},{"MAINHAND","Main Hand"},{"OFFHAND","Off Hand"},{"RANGED","Ranged"}}
 local FILTER_SLOT_OF={FINGER2="FINGER1",TRINKET2="TRINKET1"}
 local QUALITY_FILTERS={-1,5,4,3,2,1,0}
-local SORTS={{"ilvl","Item Level (high)"},{"ilvlUp","Item Level (low)"},{"name","Name (A-Z)"},{"req","Required Level (high)"}}
-local FILTER_STATS={"str","agi","sta","int","spi","armor","ap","rap","crit","hit","haste","spellPower","healing","spellCrit","spellHit","mp5","defense","dodge","parry","block","firePower","frostPower","shadowPower","arcanePower","naturePower","holyPower","spellPen","fireRes","frostRes","natureRes","shadowRes","arcaneRes"}
+local SORTS={{"ilvl","Item Level (high)"},{"ilvlUp","Item Level (low)"},{"name","Name (A-Z)"},{"req","Required Level (high)"},{"blockValue","Block Value (high)"}}
+local FILTER_STATS={"str","agi","sta","int","spi","armor","ap","rap","crit","hit","haste","spellPower","healing","spellCrit","spellHit","mp5","defense","dodge","parry","block","blockValue","firePower","frostPower","shadowPower","arcanePower","naturePower","holyPower","spellPen","fireRes","frostRes","natureRes","shadowRes","arcaneRes"}
 local MAX_STAT_FILTERS=4
 local ARMOR_FILTERS={{0,"All Armor"},{1,"Cloth"},{2,"Leather"},{3,"Mail"},{4,"Plate"}}
 
@@ -679,6 +681,7 @@ function AB:CreateItemBrowser()
   self:ApplyEmberBackground(f,10,0.55,0.5,0.4); self:AddEmberHeader(f,34); self:AddEmberWell(f,22,-190,-22,48)
   local t=f:CreateFontString(nil,"OVERLAY","GameFontNormalLarge"); t:SetPoint("TOP",f,"TOP",0,-17); t:SetText("ITEM DATABASE"); self.itemBrowserTitle=t
   local close=CreateFrame("Button",nil,f,"UIPanelCloseButton"); close:SetPoint("TOPRIGHT",f,"TOPRIGHT",-4,-4); f.closeButton=close; self:AddChrome(f,t); self:AddChrome(f,close)
+  self:CreateAvailabilityButton(f)
   -- Search typing is debounced; everything else refreshes on the next frame.
   f:SetScript("OnUpdate",function() if AB.itemRefreshAt and GetTime()>=AB.itemRefreshAt then AB.itemRefreshAt=nil; AB.itemPage=1; AB:RefreshItemResults() end end)
 
@@ -834,13 +837,15 @@ function AB:RefreshItemResults()
   local idx=self.ItemIndex
   local matches=idx:Query({slot=fl.slot,query=string.lower(self.itemSearch:GetText() or ""),quality=fl.quality,minIlvl=fl.minIlvl,maxIlvl=fl.maxIlvl,source=fl.source,stats=fl.stats,
     maxReq=fl.usable and self:GetBuildLevel() or nil,class=fl.classOnly and self.current.class or nil,showHidden=fl.showHidden,
-    level=fl.usable and self:GetBuildLevel() or nil,armor=(fl.armor or 0)>0 and fl.armor or nil})
+    level=fl.usable and self:GetBuildLevel() or nil,armor=(fl.armor or 0)>0 and fl.armor or nil,availability=self:GetAvailabilitySettings()})
   if fl.sort=="ilvlUp" then
     local n=table.getn(matches); local i; for i=1,math.floor(n/2) do matches[i],matches[n-i+1]=matches[n-i+1],matches[i] end
   elseif fl.sort=="name" then
     local names=idx.name; table.sort(matches,function(a,b) return names[a]<names[b] end)
   elseif fl.sort=="req" then
     local req,ilvl=idx.req,idx.ilvl; table.sort(matches,function(a,b) if req[a]~=req[b] then return req[a]>req[b] end return ilvl[a]>ilvl[b] end)
+  elseif fl.sort=="blockValue" then
+    local stats,names=idx.stats,idx.name; table.sort(matches,function(a,b) local va,vb=stats[a].blockValue or 0,stats[b].blockValue or 0; if va~=vb then return va>vb end return names[a]<names[b] end)
   end
   self.itemMatches=matches
   self:RenderItemPage()
@@ -863,8 +868,12 @@ function AB:RenderItemPage()
       kind=SLOT_TEXT[item.slot] or ""
       if item.itemClass==4 and ARMOR_TEXT[item.subclass] then kind=ARMOR_TEXT[item.subclass].." "..kind elseif item.itemClass==2 and item.weaponType then kind=kind.." "..item.weaponType end
       row.meta:SetText(kind.."   |cffd9c9a3iLvl "..(item.ilvl or 0).."|r"..((item.req or 0)>0 and ("   Req "..item.req) or ""))
-      local text=self:StatSummary(item.stats); local direct=self:GetDirectSourceSummary(id)
+      local text=self:StatSummary(self.GetItemStatTotals and self:GetItemStatTotals(id) or item.stats); local direct=self:GetDirectSourceSummary(id)
       if direct~="" then text=(text~="" and (text.."  -  ") or "")..direct end
+      local availability=self:GetItemAvailability(id)
+      if availability.status=="future" then text=text.."  |cffffa040[Phase "..availability.phase.."]|r"
+      elseif availability.status=="unknown" then text=text.."  |cff9ea5b2[Unverified source]|r"
+      elseif availability.status=="unobtainable" then text=text.."  |cffff6060[Unavailable]|r" end
       row.stats:SetText(text); row:Show()
     else row.itemID=nil; row:Hide() end
   end
@@ -922,6 +931,7 @@ function AB:CreateEnchantBrowser()
   self:ApplyEmberBackground(f,10,0.5,0.5,0.4); self:AddEmberHeader(f,34); self:AddEmberWell(f,22,-130,-22,44)
   f.title=f:CreateFontString(nil,"OVERLAY","GameFontNormalLarge"); f.title:SetPoint("TOP",f,"TOP",0,-18)
   local close=CreateFrame("Button",nil,f,"UIPanelCloseButton"); close:SetPoint("TOPRIGHT",f,"TOPRIGHT",-4,-4)
+  self:CreateAvailabilityButton(f)
   f.item=f:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall"); f.item:SetPoint("TOPLEFT",f,"TOPLEFT",28,-58); f.item:SetWidth(340); f.item:SetJustifyH("LEFT")
   local none=MakeButton(f,"Remove Enchant",130,22); none:SetPoint("TOPRIGHT",f,"TOPRIGHT",-26,-52); none:SetScript("OnClick",function() AB:ApplyEnchant(AB.enchantSlot,0); f:Hide() end)
 
@@ -942,7 +952,7 @@ function AB:CreateEnchantBrowser()
     r.text=r:CreateFontString(nil,"OVERLAY","GameFontHighlight"); r.text:SetPoint("TOPLEFT",r,"TOPLEFT",8,-3); r.text:SetWidth(490); r.text:SetJustifyH("LEFT")
     r.desc=r:CreateFontString(nil,"OVERLAY","GameFontDisableSmall"); r.desc:SetPoint("BOTTOMLEFT",r,"BOTTOMLEFT",8,3); r.desc:SetWidth(490); r.desc:SetJustifyH("LEFT"); r.desc:SetTextColor(.3,.95,.3)
     r:SetScript("OnClick",function() if this.enchantID then AB:ApplyEnchant(AB.enchantSlot,this.enchantID); f:Hide() end end)
-    r:SetScript("OnEnter",function() local e=this.enchantID and AshenBuildsEnchants[this.enchantID]; if e and e.tip then GameTooltip:SetOwner(this,"ANCHOR_RIGHT"); GameTooltip:SetText(e.n,1,.82,0); GameTooltip:AddLine(e.tip,.1,1,.1,true); GameTooltip:Show() end end)
+    r:SetScript("OnEnter",function() local e=this.enchantID and AshenBuildsEnchants[this.enchantID]; if e and e.tip then GameTooltip:SetOwner(this,"ANCHOR_RIGHT"); GameTooltip:SetText(e.n,1,.82,0); GameTooltip:AddLine(e.tip,.1,1,.1,true); AB:AddAvailabilityTooltip(AB:GetEnchantAvailability(this.enchantID)); GameTooltip:Show() end end)
     r:SetScript("OnLeave",function() GameTooltip:Hide() end)
     self.enchantRows[i]=r
   end
@@ -969,12 +979,16 @@ function AB:FilterEnchants()
   local query=string.lower(self.enchantSearch:GetText() or "")
   local group=GroupOf(self.enchantFilter.group)
   local current=self.current.enchants[self.enchantSlot]
-  local pool,out={},{}
+  local pool,out,sourceStatus={},{},{}
+  local contentSettings=self:GetAvailabilitySettings()
   local i,j,id,e,keep,text
   for i=1,table.getn(self.enchantCandidates) do
-    id=self.enchantCandidates[i]; e=AshenBuildsEnchants[id]; keep=true
-    if group[1]=="other" then keep=not next(e.stats)
-    elseif group[3] then keep=GroupValue(e,group)>0 end
+    id=self.enchantCandidates[i]; e=AshenBuildsEnchants[id]
+    local availability=self:GetEnchantAvailability(id)
+    sourceStatus[id]=availability.status
+    keep=self:MatchesAvailability(availability) and self:MatchesContentInstances(availability)
+    if keep and group[1]=="other" then keep=not next(e.stats)
+    elseif keep and group[3] then keep=GroupValue(e,group)>0 end
     if keep and query~="" then
       text=string.lower(e.n.." "..(e.tip or "").." "..self:StatSummary(e.stats))
       keep=string.find(text,query,1,true) and true or false
@@ -986,7 +1000,11 @@ function AB:FilterEnchants()
     -- Hide enchants another candidate strictly beats (Minor/Lesser/Greater Stamina when Superior exists),
     -- but never the one currently applied.
     if not self.enchantFilter.lower and id~=current then
-      for j=1,table.getn(pool) do if pool[j]~=id and Dominates(AshenBuildsEnchants[pool[j]],AshenBuildsEnchants[id]) then keep=false; break end end
+      for j=1,table.getn(pool) do
+        local other=pool[j]
+        local comparable=contentSettings.profile=="Catalog" or sourceStatus[id]~="available" or sourceStatus[other]=="available"
+        if other~=id and comparable and Dominates(AshenBuildsEnchants[other],AshenBuildsEnchants[id]) then keep=false; break end
+      end
     end
     if keep then table.insert(out,id) end
   end
@@ -1007,6 +1025,9 @@ function AB:RenderEnchantRows()
     if e then
       r.enchantID=id; r.text:SetText((id==current and "|cffffd100> |r" or "")..e.n)
       desc=self:StatSummary(e.stats); if desc=="" then desc=e.tip or e.desc or "" end
+      local availability=self:GetEnchantAvailability(id)
+      if availability.status=="future" then desc=desc.."  [Phase "..availability.phase.."]"
+      elseif availability.status=="unknown" then desc=desc.."  [Unverified source]" end
       r.desc:SetText(desc); r:Show()
     else r.enchantID=nil; r:Hide() end
   end
@@ -1335,6 +1356,7 @@ function AB:ShowItemTooltip(owner,id)
   if slot~="" then self:AddTooltipDouble(slot,typeName,1,1,1,1,1,1) end
   if item.itemClass==2 and item.minDamage and item.maxDamage and item.maxDamage>0 then self:AddTooltipDouble(string.format("%d - %d Damage",item.minDamage,item.maxDamage),item.speed and item.speed>0 and string.format("Speed %.2f",item.speed) or "",1,1,1,1,1,1); if item.stats and item.stats.dps then GameTooltip:AddLine(string.format("(%.1f damage per second)",item.stats.dps),1,1,1) end end
   if item.armor and item.armor>0 then GameTooltip:AddLine(item.armor.." Armor",1,1,1) end
+  if item.shield and item.shieldBlockKnown then GameTooltip:AddLine((item.shieldBaseBlockValue or 0).." Block",1,1,1) end
   local i,k,v,e,trig,prefix
   for i=1,table.getn(AB_STAT_ORDER) do k=AB_STAT_ORDER[i]; v=item.stats and item.stats[k]; if v and v~=0 and not (k=="armor") then GameTooltip:AddLine("+"..v.." "..(AB_STAT_TOOLTIP[k] or k),1,1,1) end end
   if d[2] and d[2]>0 then GameTooltip:AddLine("Durability "..d[2].." / "..d[2],1,1,1) end
@@ -1354,6 +1376,7 @@ function AB:ShowItemTooltip(owner,id)
   if d[4] and d[4]~="" then GameTooltip:AddLine('"'..d[4]..'"',1,0.82,0,true) end
   if d[3] and d[3]>0 then GameTooltip:AddLine("Sell Price: "..self:MoneyText(d[3]),1,1,1) end
   self:AddSourceTooltipLines(id)
+  self:AddAvailabilityTooltip(self:GetItemAvailability(id))
   GameTooltip:Show()
 end
 
@@ -1462,4 +1485,130 @@ function AB:ProbeDressingRoom(slot)
   if table.getn(log) == 0 then self.Print("DressUpItemLink(" .. link .. ") made no model calls.") end
   for i = 1, table.getn(log) do self.Print("  " .. i .. ". " .. log[i]) end
   self.Print("Please screenshot these lines. The Dressing Room should now be showing that item.")
+end
+
+---------------------------------------------------------------------------
+-- Content availability. One shared profile drives both item and enchant pickers.
+---------------------------------------------------------------------------
+function AB:CreateAvailabilityButton(parent)
+  local b=MakeButton(parent,self:GetAvailabilityLabel(),142,20)
+  b:SetPoint("TOPLEFT",parent,"TOPLEFT",24,-10)
+  b:SetScript("OnClick",function() AB:RefreshAvailabilityControls(); AB.availabilityBrowser:Show() end)
+  self.availabilityButtons=self.availabilityButtons or {}; table.insert(self.availabilityButtons,b)
+  return b
+end
+
+function AB:RefreshContentViews()
+  self:RefreshAvailabilityControls()
+  if self.itemRows and self.itemBrowser:IsShown() then self.itemPage=1; self:RefreshItemResults() end
+  if self.enchantCandidates and self.enchantBrowser:IsShown() then self:FilterEnchants() end
+end
+
+function AB:RefreshAvailabilityControls()
+  local s=self:GetAvailabilitySettings(); local i
+  for i=1,table.getn(self.availabilityButtons or {}) do self.availabilityButtons[i]:SetText(self:GetAvailabilityLabel()) end
+  local f=self.availabilityBrowser; if not f then return end
+  f.profile:Refresh(); f.phase:Refresh(); f.instances:Refresh()
+  f.future:SetChecked(s.showFuture and 1 or nil); f.unknown:SetChecked(s.includeUnknown and 1 or nil)
+end
+
+function AB:CreateAvailabilityBrowser()
+  local f=CreateFrame("Frame","AshenBuildsAvailabilityBrowser",UIParent); f:SetWidth(570); f:SetHeight(330); f:SetPoint("CENTER",UIParent,"CENTER",0,20)
+  MakeBackdrop(f); self:SetupWindow(f,{fit=true}); self:ApplyEmberBackground(f,10,.45,.5,.45); self:AddEmberHeader(f,34); f:Hide(); self.availabilityBrowser=f
+  local title=f:CreateFontString(nil,"OVERLAY","GameFontNormalLarge"); title:SetPoint("TOP",f,"TOP",0,-18); title:SetText("CONTENT AVAILABILITY")
+  local close=CreateFrame("Button",nil,f,"UIPanelCloseButton"); close:SetPoint("TOPRIGHT",f,"TOPRIGHT",-4,-4)
+  f.profile=self:CreateDropdown(f,170,{
+    items=function() return {{value="Octo",text="OctoWoW"},{value="Catalog",text="Full catalog"}} end,
+    getText=function() return AB:GetAvailabilitySettings().profile=="Catalog" and "Full catalog" or "OctoWoW" end,
+    isChecked=function(v) return AB:GetAvailabilitySettings().profile==v end,
+    onSelect=function(v) AB:GetAvailabilitySettings().profile=v; AB:RefreshContentViews() end})
+  f.profile:SetPoint("TOPLEFT",f,"TOPLEFT",28,-70); self:Caption(f,"Server profile",f.profile)
+  f.phase=self:CreateDropdown(f,310,{
+    items=function() local out,i={},nil; for i=1,table.getn(AB.CONTENT_PHASES) do table.insert(out,{value=AB.CONTENT_PHASES[i][1],text=AB.CONTENT_PHASES[i][2]}) end; return out end,
+    getText=function() local phase=AB:GetAvailabilitySettings().phase; return LabelOf(AB.CONTENT_PHASES,phase) end,
+    isChecked=function(v) return AB:GetAvailabilitySettings().phase==v end,
+    onSelect=function(v) AB:GetAvailabilitySettings().phase=v; AB:RefreshContentViews() end})
+  f.phase:SetPoint("LEFT",f.profile,"RIGHT",20,0); self:Caption(f,"Selected Octo phase",f.phase)
+  f.instances=self:CreateDropdown(f,500,{multi=true,listWidth=500,
+    items=function() local out={{value="__all",text="All raids and dungeons"}}; local i; for i=1,table.getn(AB.CONTENT_INSTANCES) do table.insert(out,{value=AB.CONTENT_INSTANCES[i],text=AB.CONTENT_INSTANCES[i]}) end; return out end,
+    getText=function() local n=0; local zone; for zone in pairs(AB:GetAvailabilitySettings().instances) do n=n+1 end; return n==0 and "All raids and dungeons" or (n.." instances selected") end,
+    isChecked=function(v) local s=AB:GetAvailabilitySettings(); if v=="__all" then return not next(s.instances) end; return s.instances[v] end,
+    onSelect=function(v) local s=AB:GetAvailabilitySettings(); if v=="__all" then s.instances={} else s.instances[v]=not s.instances[v] or nil end; AB:RefreshContentViews() end})
+  f.instances:SetPoint("TOPLEFT",f,"TOPLEFT",28,-124); self:Caption(f,"Acquisition locations (multiple selection)",f.instances)
+  f.future=self:CreateCheck(f,"Show future phases",function(v) AB:GetAvailabilitySettings().showFuture=v; AB:RefreshContentViews() end); f.future:SetPoint("TOPLEFT",f,"TOPLEFT",28,-170)
+  f.unknown=self:CreateCheck(f,"Include unverified sources",function(v) AB:GetAvailabilitySettings().includeUnknown=v; AB:RefreshContentViews() end); f.unknown:SetPoint("TOPLEFT",f,"TOPLEFT",280,-170)
+  local note=f:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall"); note:SetPoint("TOPLEFT",f,"TOPLEFT",30,-212); note:SetWidth(505); note:SetJustifyH("LEFT")
+  note:SetText("Filters affect suggestions only; saved builds keep all their items and enchants.\nUnverified or incomplete acquisition sources are marked, not treated as unavailable.\nOcto roadmap checked "..self.ContentProfileChecked..". Future content dates may change.")
+  local done=MakeButton(f,"Done",100,24); done:SetPoint("BOTTOM",f,"BOTTOM",0,18); done:SetScript("OnClick",function() f:Hide() end)
+  self:RefreshAvailabilityControls()
+end
+
+function AB:AddAvailabilityTooltip(result)
+  local color=result.status=="future" or result.status=="unobtainable"
+  GameTooltip:AddLine(self:AvailabilityNote(result),color and 1 or .62,color and .55 or .66,color and .2 or .7,true)
+end
+
+---------------------------------------------------------------------------
+-- Defensive detail view: effective attack-table values against a chosen level.
+---------------------------------------------------------------------------
+function AB:CreateDefenseBrowser()
+  local f=CreateFrame("Frame","AshenBuildsDefenseBrowser",UIParent); f:SetWidth(500); f:SetHeight(480); f:SetPoint("CENTER",UIParent,"CENTER",0,20)
+  MakeBackdrop(f); self:SetupWindow(f,{fit=true}); self:ApplyEmberBackground(f,10,.45,.5,.45); self:AddEmberHeader(f,34); f:Hide(); self.defenseBrowser=f
+  local title=f:CreateFontString(nil,"OVERLAY","GameFontNormalLarge"); title:SetPoint("TOP",f,"TOP",0,-18); title:SetText("DEFENSE DETAILS")
+  local close=CreateFrame("Button",nil,f,"UIPanelCloseButton"); close:SetPoint("TOPRIGHT",f,"TOPRIGHT",-4,-4)
+  f.target=self:CreateDropdown(f,160,{
+    items=function() return {{value=60,text="Level 60"},{value=61,text="Level 61"},{value=62,text="Level 62"},{value=63,text="Level 63 (boss)"}} end,
+    getText=function() return "Level "..AB:GetDefenseSettings().targetLevel end,
+    isChecked=function(v) return AB:GetDefenseSettings().targetLevel==v end,
+    onSelect=function(v) AB:SetDefenseSetting("targetLevel",v); AB:RefreshUI() end})
+  f.target:SetPoint("TOPLEFT",f,"TOPLEFT",28,-68); self:Caption(f,"Attacker level",f.target)
+  local sheet=f:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall"); sheet:SetPoint("LEFT",f.target,"RIGHT",18,0); sheet:SetWidth(260); sheet:SetJustifyH("LEFT"); sheet:SetText("Incoming melee attacks from the front")
+  f.rows={}
+  local rowDefs={{"Miss","miss"},{"Dodge","dodge"},{"Parry","parry"},{"Block","block"},
+    {"Avoidance (miss + dodge + parry)","avoidance"},{"Attack-table coverage (+ block)","coverage"},
+    {"Gap to full coverage","capGap"},{"Critical hit chance","crit"},{"Crushing blow chance","crushing"}}
+  local i
+  for i=1,table.getn(rowDefs) do
+    local row={key=rowDefs[i][2]}
+    row.label=f:CreateFontString(nil,"OVERLAY","GameFontHighlight"); row.label:SetPoint("TOPLEFT",f,"TOPLEFT",30,-112-(i-1)*22); row.label:SetText(rowDefs[i][1])
+    row.value=f:CreateFontString(nil,"OVERLAY","GameFontHighlight"); row.value:SetPoint("TOPRIGHT",f,"TOPRIGHT",-30,-112-(i-1)*22)
+    f.rows[i]=row
+  end
+  local function Toggle(key) return function(v) AB:SetDefenseSetting(key,v); AB:RefreshUI() end end
+  f.holyShield=self:CreateCheck(f,"Holy Shield active",Toggle("holyShield")); f.holyShield:SetPoint("TOPLEFT",f,"TOPLEFT",28,-328)
+  f.redoubt=self:CreateCheck(f,"Redoubt active",Toggle("redoubt")); f.redoubt:SetPoint("TOPLEFT",f,"TOPLEFT",258,-328)
+  f.shieldBlock=self:CreateCheck(f,"Shield Block active",Toggle("shieldBlock")); f.shieldBlock:SetPoint("TOPLEFT",f,"TOPLEFT",28,-328)
+  f.note=f:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall"); f.note:SetPoint("TOPLEFT",f,"TOPLEFT",30,-370); f.note:SetWidth(440); f.note:SetJustifyH("LEFT")
+  f.note:SetText("Active effects require a shield and the matching class/talent.\nCoverage is a snapshot while selected effects have time and charges remaining.\nThe character panel shows passive sheet values.")
+  f.warnings=MakeButton(f,"Calculation notes",180,20); f.warnings:SetPoint("BOTTOM",f,"BOTTOM",0,10); f.warnings:Hide()
+  local function ShowWarnings()
+    GameTooltip:SetOwner(f.warnings,"ANCHOR_RIGHT"); GameTooltip:SetText("Calculation notes",1,.82,0)
+    local i; for i=1,table.getn(f.calculationWarnings or {}) do GameTooltip:AddLine(tostring(f.calculationWarnings[i]),1,.7,.3,true) end
+    GameTooltip:Show()
+  end
+  f.warnings:SetScript("OnEnter",ShowWarnings); f.warnings:SetScript("OnClick",ShowWarnings); f.warnings:SetScript("OnLeave",function() GameTooltip:Hide() end)
+  f:SetScript("OnShow",function() AB:RefreshDefenseBrowser() end)
+  local button=MakeButton(self.statsColumns[5],"Details...",96,18); button:SetPoint("TOPRIGHT",self.statsColumns[5],"TOPRIGHT",-8,-4)
+  button:SetScript("OnClick",function() f:Show(); AB:RefreshDefenseBrowser() end); self.defenseDetailsButton=button
+end
+
+function AB:RefreshDefenseBrowser(stats)
+  local f=self.defenseBrowser; if not f then return end
+  local s=self:GetDefenseSettings(); local d=stats or self:GetDerivedStats(self.current); local t=d.defenseTable or {}
+  if t.modelNote then f.note:SetText(t.modelNote.."\nCoverage is a snapshot while selected effects have time and charges remaining.\nThe character panel shows passive sheet values.") end
+  f.calculationWarnings=d.warnings or {}
+  if table.getn(f.calculationWarnings)>0 then f.warnings:SetText("Calculation notes ("..table.getn(f.calculationWarnings)..")"); f.warnings:Show() else f.warnings:Hide() end
+  local i,row
+  for i=1,table.getn(f.rows) do row=f.rows[i]; row.value:SetText(t[row.key]~=nil and string.format("%.2f%%",t[row.key]) or "--") end
+  f.target:Refresh()
+  local item=self:GetItem(self.current.items.OFFHAND or 0); local shield=item and item.shield
+  local active=d.talentModifiers and d.talentModifiers.activeEffects or {}
+  local function Control(control,key,show,enabled)
+    if show then control:Show() else control:Hide() end
+    control:SetChecked(s[key] and 1 or nil)
+    if enabled then control:Enable(); control.label:SetTextColor(1,1,1) else control:Disable(); control.label:SetTextColor(.5,.5,.5) end
+  end
+  Control(f.holyShield,"holyShield",self.current.class=="Paladin",shield and active.holyShield)
+  Control(f.redoubt,"redoubt",self.current.class=="Paladin",shield and active.redoubt)
+  Control(f.shieldBlock,"shieldBlock",self.current.class=="Warrior",shield and self:GetBuildLevel()>=16)
 end

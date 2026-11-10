@@ -240,14 +240,15 @@ local function ReadSetBonuses(AB, build, c)
           elseif e and not e.special then
             local k, v
             for k, v in pairs(e) do
-              if k == "haste" then c.set.hastePct = (c.set.hastePct or 0) + v
+              local sheet=AB.StaticSetStats and AB.StaticSetStats[b[2]] or {}
+              if k == "haste" and not sheet.haste then c.set.hastePct = (c.set.hastePct or 0) + v
               elseif k == "skill" then
                 local wt, sv
                 for wt, sv in pairs(v) do
                   if wt == "all" then local q; for q = 1, table.getn(SKILL_ALL) do c.set.skill[SKILL_ALL[q]] = (c.set.skill[SKILL_ALL[q]] or 0) + sv end
                   else c.set.skill[wt] = (c.set.skill[wt] or 0) + sv end
                 end
-              elseif k ~= "none" then c.set[k] = (c.set[k] or 0) + v end
+              elseif k ~= "none" and k~="haste" and not sheet[k] then c.set[k] = (c.set[k] or 0) + v end
             end
             done = true
           elseif not e then
@@ -390,6 +391,7 @@ function W.BuildCharacter(build, cfg)
   c.playerArmor = out.armor or 0
   c.blockGear = ((out.gear and out.gear.blockValue) or 0) - 1
   c.blockPct = 1 + ((out.talentModifiers and out.talentModifiers.blockValuePct) or 0) / 100
+  c.defenseTable=AB:CalculateDefenseTable(out,cfg.targetLevel,0)
   c.out = out
   if c.set.hastePct then c.notes.hasteFromSet = c.set.hastePct end
   return c
@@ -429,6 +431,7 @@ local function Recalc(a)
   end
   a.str = floor((c.baseStr + str) * c.statMult)
   a.agi = floor((c.baseAgi + agi) * c.statMult)
+  a.dodge=math.max(0,c.defenseTable.dodge+(a.agi-c.out.agi)/(c.out.dodgePerAgility or 20))
   a.ap = c.apBase + 2 * a.str + ap
   a.crit = c.critBase + a.agi * c.agiCrit + crit
   a.hit = c.hit + hit
@@ -1179,29 +1182,29 @@ end
 local function BossSwing(sim, a)
   local c, cfg = a.char, a.cfg
   a.bossEvent = sim:After(cfg.bossSpeed, BossSwing, a)
-  local diff = (cfg.targetLevel * 5) - c.defense           -- boss weapon skill vs your defense
+  local defense=c.defenseTable
   local roll = sim.rng:Next() * 100
-  local tmp = max(5 - diff * 0.04, 0)
+  local tmp = defense.miss
   if roll < tmp then sim:Count("boss.miss"); return end
-  tmp = tmp + max(c.dodge - 0.6, 0)
+  tmp = tmp + a.dodge
   if roll < tmp then sim:Count("boss.dodge"); a.revengeUntil = sim.t + 5; Think(sim, a); return end
-  tmp = tmp + max(c.parry - 0.6, 0)
+  tmp = tmp + defense.parry
   if roll < tmp then sim:Count("boss.parry"); a.revengeUntil = sim.t + 5; Think(sim, a); return end
   local blocked = false
   if c.shield then
     local bonus = (a.bonusBlockUntil and sim.t < a.bonusBlockUntil) and (a.bonusBlock or 0) or 0
-    tmp = tmp + max(c.block - 0.6, 0) + bonus
+    tmp = tmp + defense.block + bonus
     if roll < tmp then blocked = true end
     a.bonusBlockUntil = nil
   end
   local dmg = sim.rng:Range(cfg.bossMin, cfg.bossMax)
   local crit = false
   if not blocked then
-    tmp = tmp + max(5 + diff * 0.04, 0)
+    tmp = tmp + defense.rawCrit
     if roll < tmp then crit = true; dmg = dmg * 2
-    else tmp = tmp + 15; if roll < tmp then dmg = dmg * 1.5; sim:Count("boss.crushing") end end
+    else tmp = tmp + defense.rawCrushing; if roll < tmp then dmg = dmg * 1.5; sim:Count("boss.crushing") end end
   end
-  local armor = c.playerArmor
+  local armor = max(0,c.playerArmor+2*(a.agi-c.out.agi))
   dmg = dmg * (1 - min(armor / (armor + 400 + 85 * cfg.targetLevel), 0.75))
   if a.stance == "defensive" then dmg = dmg * 0.9 end
   if blocked then

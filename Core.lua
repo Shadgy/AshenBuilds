@@ -1,5 +1,5 @@
 AshenBuilds = AshenBuilds or {}
-AshenBuilds.VERSION = "1.0.1"
+AshenBuilds.VERSION = "1.0.2"
 
 AshenBuilds.SLOTS = {
   "HEAD","NECK","SHOULDER","BACK","CHEST","SHIRT","TABARD","WRIST","HANDS","WAIST","LEGS","FEET",
@@ -270,7 +270,7 @@ function AshenBuilds:GetItemEffectStats(id)
   if effects then
     for i=1,table.getn(effects) do
       e = effects[i]; text = type(e)=="table" and e[2] or e
-      if type(text) == "string" then
+      if type(text) == "string" and (type(e)~="table" or e[1]==1) then
         for j=1,table.getn(EFFECT_PATTERNS) do
           local _, _, n = string.find(text, EFFECT_PATTERNS[j][1])
           value = tonumber(n)
@@ -291,11 +291,21 @@ function AshenBuilds:GetGearTotals(build)
     slot = self.SLOTS[i]
     id = build.items[slot]
     item = id and self:GetItem(id)
-    if item then AddStats(totals, item.stats); AddStats(totals, self:GetItemEffectStats(id)) end
+    if item then
+      if self.GetItemStatTotals then AddStats(totals,self:GetItemStatTotals(id))
+      else AddStats(totals,item.stats); AddStats(totals,self:GetItemEffectStats(id)) end
+    end
     enchantID = build.enchants and build.enchants[slot]
     enchant = enchantID and AshenBuildsEnchants and AshenBuildsEnchants[enchantID]
-    if enchant then AddStats(totals, enchant.stats) end
+    if enchant and item and self:IsEnchantAllowed(slot,enchantID,item) then
+      local stat,value
+      for stat,value in pairs(enchant.stats or {}) do
+        local key=stat=="armor" and "bonusArmor" or stat
+        totals[key]=(totals[key] or 0)+value
+      end
+    end
   end
+  if self.GetSetStatTotals then AddStats(totals,self:GetSetStatTotals(build)) end
   return totals
 end
 
@@ -311,14 +321,27 @@ function AshenBuilds:GetSetCounts(build)
 end
 
 function AshenBuilds:SetClass(value)
+  if value~=self.current.class and self.GetTalentPointsSpent and self:GetTalentPointsSpent(self.current)>0 then
+    AB_Print("Reset talents before changing the build's class."); return false
+  end
   self.current.class = value; self.current.manual = true
   self.current.spec = self.SPECS[value][1]
+  self.current.form=nil
   self.current.updated = time(); self:RefreshUI()
 end
 function AshenBuilds:SetRace(value) self.current.race=value; self.current.manual=true; self.current.updated=time(); self:RefreshUI() end
-function AshenBuilds:SetSpec(value) self.current.spec=value; self.current.updated=time(); self:RefreshUI() end
+function AshenBuilds:SetSpec(value)
+  self.current.spec=value
+  if self.current.class=="Druid" then self.current.form=value=="Feral" and "bear" or (value=="Balance" and "moonkin" or "humanoid") end
+  self.current.updated=time(); self:RefreshUI()
+end
 function AshenBuilds:SetLevel(value)
   value=AB_ValidLevel(value)
+  if self.ValidateTalents then
+    local previous=self.current.level; self.current.level=value
+    local valid,reason=self:ValidateTalents(self.current); self.current.level=previous
+    if not valid then AB_Print("Refund talents before lowering the build level: "..tostring(reason)); return false end
+  end
   self.current.level=value; self.current.manual=true; self.current.updated=time(); self:RefreshUI()
 end
 
@@ -601,7 +624,8 @@ function AB:GetDerivedStats(build)
   local level=base.level
   local racial=RACIALS[base.raceKey] or {}
   -- Form-only talents (Sharpened Claws, Moonkin Form...) only count for the matching spec.
-  local feral=(className=="Druid" and build.spec=="Feral")
+  local form=self.GetBuildForm and self:GetBuildForm(build)
+  local feral=(className=="Druid" and (form=="bear" or form=="direbear" or form=="cat"))
   local out={gear=gear,base=base,talentModifiers=m,warnings={}}
 
   local function Primary(key)
@@ -615,13 +639,16 @@ function AB:GetDerivedStats(build)
   if base.mana>0 then out.mana=math.floor(Pct(base.mana+ManaFromIntellect(out.int)+(gear.mana or 0),m.manaPct)) end
 
   -- Talents such as Toughness scale armor from items; each point of agility adds 2 armor.
-  local itemArmor=(gear.armor or 0)+(gear.bonusArmor or 0)
-  if className=="Druid" and build.spec=="Balance" and m.moonkinArmorPct then itemArmor=Pct(itemArmor,m.moonkinArmorPct) end
-  out.armor=math.floor(Pct(itemArmor,m.armorPct)+out.agi*2)
+  local itemArmor=gear.armor or 0
+  if className=="Druid" and form=="moonkin" and m.moonkinArmorPct then itemArmor=Pct(itemArmor,m.moonkinArmorPct) end
+  if className=="Druid" and form=="tree" and m.treeArmorPct then itemArmor=Pct(itemArmor,m.treeArmorPct) end
+  local offhand=self:GetItem(build.items.OFFHAND or 0)
+  if offhand and offhand.shield and m.shieldArmorPct then itemArmor=itemArmor+(offhand.armor or 0)*m.shieldArmorPct/100 end
+  out.armor=math.floor(Pct(itemArmor,m.armorPct)+(gear.bonusArmor or 0)+out.agi*2)
 
   out.attackPower=self:GetClassAttackPower(className,level,out.str,out.agi)+(gear.ap or 0)
   if feral then out.attackPower=Pct(out.attackPower+(gear.feralAp or 0),m.feralAPPct) end
-  out.attackPower=math.floor(out.attackPower)
+  out.attackPower=math.floor(out.attackPower+out.agi*(m.agiToAPPct or 0)/100)
   out.rangedAttackPower=math.floor(self:GetClassRangedAttackPower(className,level,out.agi)+(gear.ap or 0)+(gear.rap or 0))
 
   out.mainSkill=self:GetWeaponSkill(build,"MAINHAND",gear,m)
@@ -649,15 +676,22 @@ function AB:GetDerivedStats(build)
   -- Defense above the level cap adds 0.04% dodge, parry and block per point.
   out.defense=maxSkill+(gear.defense or 0)+(m.defense or 0)
   local defBonus=(out.defense-maxSkill)*0.04
+  out.miss=math.max(0,5+defBonus)
+  local parryMain=self:GetItem(build.items.MAINHAND or 0)
+  local parryOff=self:GetItem(build.items.OFFHAND or 0)
+  local parryWeapon=(parryMain and parryMain.itemClass==2) or (parryOff and parryOff.itemClass==2)
+  out.canParry=(data.canParry and data.canParry[className] and not feral and parryWeapon) and true or false
+  out.dodgePerAgility=LevelRate(data.dodgePerAgi and data.dodgePerAgi[className],level)
   out.dodge=baseCrit+out.agi/LevelRate(data.dodgePerAgi and data.dodgePerAgi[className],level)+defBonus+(gear.dodge or 0)+(m.dodge or 0)+(racial.dodge or 0)
   if feral then out.dodge=out.dodge+(m.feralDodge or 0) end
   if out.dodge<0 then out.dodge=0 end
   out.parry=(gear.parry or 0)+(m.parry or 0)
-  if data.canParry and data.canParry[className] then out.parry=out.parry+5+defBonus end
+  if out.canParry then out.parry=math.max(0,out.parry+5+defBonus) else out.parry=0 end
   local shield=self:GetItem(build.items.OFFHAND or 0)
   out.block=0; out.blockValue=0
+  out.canBlock=(shield and shield.shield and data.canBlock and data.canBlock[className] and not feral) and true or false
   if shield and shield.shield and data.canBlock and data.canBlock[className] then
-    out.block=5+defBonus+(gear.block or 0)+(m.block or 0)
+    out.block=math.max(0,5+defBonus+(gear.block or 0)+(m.block or 0))
     out.blockValue=math.floor(Pct((gear.blockValue or 0)+out.str/20-1,m.blockValuePct))
     if out.blockValue<0 then out.blockValue=0 end
   end
@@ -665,7 +699,7 @@ function AB:GetDerivedStats(build)
   -- Item "healing" already includes +damage and healing, so the talent bonuses add to both.
   local spiritBonus=out.spi*((m.spiritToSpellPct or 0)/100); local intBonus=out.int*((m.intToSpellPct or 0)/100)
   out.spellPower=math.floor(Pct(gear.spellPower or 0,m.spellPowerPct)+spiritBonus+intBonus)
-  out.healing=math.floor((gear.healing or 0)+spiritBonus+intBonus)
+  out.healing=math.floor((gear.healing or 0)+spiritBonus+intBonus+out.spi*(m.spiritToHealingPct or 0)/100+(gear.armor or 0)*(m.itemArmorToHealingPct or 0)/100)
   out.arcanePower=out.spellPower+(gear.arcanePower or 0); out.firePower=out.spellPower+(gear.firePower or 0)
   out.frostPower=out.spellPower+(gear.frostPower or 0); out.naturePower=out.spellPower+(gear.naturePower or 0)
   out.shadowPower=out.spellPower+(gear.shadowPower or 0); out.holyPower=out.spellPower+(gear.holyPower or 0)
@@ -676,6 +710,7 @@ function AB:GetDerivedStats(build)
   if regen and out.mana>0 then out.spiritRegen=(out.spi/regen[1]+regen[2])*2.5 end
   out.hp5=gear.hp5 or 0; out.haste=(gear.haste or 0)+(m.haste or 0); out.armorPen=gear.armorPen or 0; out.spellPen=gear.spellPen or 0
   out.resistances={fire=gear.fireRes or 0,frost=gear.frostRes or 0,nature=gear.natureRes or 0,shadow=gear.shadowRes or 0,arcane=gear.arcaneRes or 0}
+  local resistance; for resistance in pairs(out.resistances) do out.resistances[resistance]=out.resistances[resistance]+(m.allResistances or 0) end
 
   -- Where each total comes from, for the stat tooltips: {label, value, isPercent}.
   -- Lines worth 0 are dropped so every tooltip only lists real contributions.
@@ -697,7 +732,7 @@ function AB:GetDerivedStats(build)
     {"Talents and racials",out.health-hpBefore}})
   if out.mana>0 then Explain("mana",{{"Base mana (level "..level..")",base.mana},{"Intellect "..out.int.." (1 each for 20, then 15)",ManaFromIntellect(out.int)},{"Gear and enchants",gear.mana or 0},
     {"Talents",out.mana-(base.mana+ManaFromIntellect(out.int)+(gear.mana or 0))}}) end
-  Explain("armor",{{"Items and enchants",itemArmor},{"Talents",math.floor(Pct(itemArmor,m.armorPct))-math.floor(itemArmor)},{"Agility x2",out.agi*2}})
+  Explain("armor",{{"Item armor",itemArmor},{"Talents",math.floor(Pct(itemArmor,m.armorPct))-math.floor(itemArmor)},{"Flat armor (enchants and sets)",gear.bonusArmor or 0},{"Agility x2",out.agi*2}})
   local classAP=self:GetClassAttackPower(className,level,out.str,out.agi)
   Explain("attackPower",{{"Level, Strength and Agility ("..className..")",classAP},{"Gear and enchants",gear.ap or 0},{"Feral bonuses",out.attackPower-classAP-(gear.ap or 0)}})
   local classRAP=self:GetClassRangedAttackPower(className,level,out.agi)
@@ -714,16 +749,21 @@ function AB:GetDerivedStats(build)
   Explain("defense",{{"Base (level "..level.." x5)",maxSkill},{"Gear and enchants",gear.defense or 0},{"Talents",m.defense or 0}})
   Explain("dodge",{{"Class base",baseCrit,true},{"Agility "..out.agi,out.agi/LevelRate(data.dodgePerAgi and data.dodgePerAgi[className],level),true},{"Defense above cap",defBonus,true},
     {"Gear and enchants",gear.dodge or 0,true},{"Talents",(m.dodge or 0)+(feral and m.feralDodge or 0),true},{"Racial",racial.dodge or 0,true}})
-  if data.canParry and data.canParry[className] then Explain("parry",{{"Base",5,true},{"Defense above cap",defBonus,true},{"Gear and enchants",gear.parry or 0,true},{"Talents",m.parry or 0,true}})
-  else Explain("parry",{{"Gear and enchants",gear.parry or 0,true},{"Talents",m.parry or 0,true}}); out.parryNote=className.."s can't parry" end
+  if out.canParry then Explain("parry",{{"Base",5,true},{"Defense above level maximum",defBonus,true},{"Gear and enchants",gear.parry or 0,true},{"Talents",m.parry or 0,true}})
+  else Explain("parry",{}); out.parryNote=(data.canParry and data.canParry[className]) and "Equip a weapon to parry" or (className.."s can't parry") end
   if out.block>0 then
     Explain("block",{{"Base (shield)",5,true},{"Defense above cap",defBonus,true},{"Gear and enchants",gear.block or 0,true},{"Talents",m.block or 0,true}})
-    Explain("blockValue",{{"Shield and equip effects",gear.blockValue or 0},{"Strength / 20 - 1",out.str/20-1},{"Talents",out.blockValue-math.floor((gear.blockValue or 0)+out.str/20-1)}})
+    Explain("blockValue",{{"Shield base",gear.shieldBaseBlockValue or 0},{"Equip, enchants and set bonuses",(gear.blockValue or 0)-(gear.shieldBaseBlockValue or 0)},{"Strength / 20 - 1",out.str/20-1},{"Talents",out.blockValue-math.floor((gear.blockValue or 0)+out.str/20-1)}})
   else
     out.blockNote=(data.canBlock and data.canBlock[className]) and "Equip a shield to block" or (className.."s can't block")
   end
   if regen then Explain("spiritRegen",{{"Spirit "..out.spi.." / "..regen[1].." + "..regen[2].." every 2 sec, x2.5",out.spiritRegen}}) end
   out.explain=ex
+  if self.GetDefenseTable then
+    out.defenseTable=self:GetDefenseTable(out,build)
+    out.avoidance=out.defenseTable.avoidance; out.coverage=out.defenseTable.coverage
+  end
+  if self.GetCalculationWarnings then out.warnings=self:GetCalculationWarnings(build,out) end
   return out
 end
 

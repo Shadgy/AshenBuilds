@@ -2,7 +2,7 @@
 ## Title: Ashen Builds
 ## Notes: All-class Turtle WoW build planner with embedded AshenDB
 ## Author: The Ashen Banner
-## Version: 1.0.1
+## Version: 1.0.2
 ## X-Maintainer: Shadgy
 ## X-Website: https://github.com/Shadgy/AshenBuilds
 ## X-Upstream: https://github.com/Tracer96/AshenBuilds
@@ -10,6 +10,7 @@
 Data\AshenDB\Core.lua
 Data\AshenDB\Data\Manifest.lua
 Data\SetCatalog.lua
+Data\StaticSetStats.lua
 Data\AshenDB\Data\Items\Items_001.lua
 Data\AshenDB\Data\Items\Items_002.lua
 Data\AshenDB\Data\Items\Items_003.lua
@@ -84,8 +85,10 @@ Data\AshenDB\Data\Sources\Sources_027.lua
 Data\AshenDB\Data\Sources\Sources_028.lua
 Data\AshenDB\Data\Sources\Sources_029.lua
 Data\AshenDB\Data\Sources\Sources_030.lua
+Data\ShieldBlock.lua
 Data\AshenDBAdapter.lua
 Data\Enchants.lua
+Data\EnchantIds.lua
 Data\BaseStats.lua
 Data\Talents\Bootstrap.lua
 Data\Talents\DRUID.lua
@@ -97,11 +100,15 @@ Data\Talents\ROGUE.lua
 Data\Talents\SHAMAN.lua
 Data\Talents\WARLOCK.lua
 Data\Talents\WARRIOR.lua
+Data\ContentSources.lua
+Availability.lua
 Core.lua
+SaveSafety.lua
 ItemIndex.lua
 Theme.lua
 Widgets.lua
 TalentEngine.lua
+CombatMath.lua
 UI.lua
 TalentUI.lua
 Profanity.lua
