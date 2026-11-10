@@ -1,0 +1,2 @@
+# Lua 5.1 runtime used by tests/run.py; Lua 5.0 syntax is checked separately in CI.
+lupa==2.8

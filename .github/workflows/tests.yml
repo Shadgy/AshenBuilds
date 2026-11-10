@@ -2,35 +2,100 @@ name: tests
 
 on:
   push:
+    branches: ['**']
   pull_request:
+  workflow_call:
+    inputs:
+      ref:
+        description: Commit to check out
+        type: string
+        default: ''
+      tag:
+        description: Optional release tag that must match the addon version
+        type: string
+        default: ''
+
+permissions:
+  contents: read
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-
-      # The WoW 1.12 client runs Lua 5.0, so every addon file must compile with it.
-      - name: Build Lua 5.0.3
-        run: |
-          curl -sSL https://www.lua.org/ftp/lua-5.0.3.tar.gz | tar xz -C "$RUNNER_TEMP"
-          make -C "$RUNNER_TEMP/lua-5.0.3" > /dev/null
-          echo "$RUNNER_TEMP/lua-5.0.3/bin" >> "$GITHUB_PATH"
-
-      - name: Compile every addon file with Lua 5.0
-        run: |
-          status=0
-          while IFS= read -r f; do
-            f="${f//\\//}"
-            luac -p "$f" || status=1
-          done < <(grep -v '^#' AshenBuilds.toc | grep -v '^[[:space:]]*$' | tr -d '\r')
-          exit $status
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
 
-      - name: Run the test suites
+      - name: Install pinned test dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      # Official checksum: https://www.lua.org/ftp/
+      # The WoW 1.12 client uses Lua 5.0; Lua 5.1 tests alone cannot check its syntax.
+      - name: Build verified Lua 5.0.3
+        shell: bash
         run: |
-          pip install lupa
-          python tests/run.py
+          curl --fail --location --proto '=https' --tlsv1.2 --retry 3 \
+            https://www.lua.org/ftp/lua-5.0.3.tar.gz \
+            --output "$RUNNER_TEMP/lua-5.0.3.tar.gz"
+          echo "1193a61b0e08acaa6eee0eecf29709179ee49c71baebc59b682a25c3b5a45671  $RUNNER_TEMP/lua-5.0.3.tar.gz" | sha256sum --check
+          tar xzf "$RUNNER_TEMP/lua-5.0.3.tar.gz" -C "$RUNNER_TEMP"
+          make -C "$RUNNER_TEMP/lua-5.0.3"
+          echo "$RUNNER_TEMP/lua-5.0.3/bin" >> "$GITHUB_PATH"
+
+      - name: Validate addon manifest and release version
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          args=(--check)
+          if [[ -n "$RELEASE_TAG" ]]; then args+=(--tag "$RELEASE_TAG"); fi
+          python tools/package_release.py "${args[@]}"
+
+      - name: Compile every addon file with Lua 5.0
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+          count = 0
+          for line in Path('AshenBuilds.toc').read_text(encoding='utf-8').splitlines():
+              name = line.strip()
+              if name and not name.startswith('#'):
+                  subprocess.run(['luac', '-p', name.replace('\\', '/')], check=True)
+                  count += 1
+          if not count:
+              raise SystemExit('No addon files found in TOC')
+          print(f'Lua 5.0 compiled {count} addon files')
+          PY
+
+      - name: Run release tooling tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+
+      - name: Run addon behavior tests with Lua 5.1
+        run: python tests/run.py
+
+      - name: Build installation candidate
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          args=(--output-dir dist)
+          if [[ -n "$RELEASE_TAG" ]]; then args+=(--tag "$RELEASE_TAG"); fi
+          python tools/package_release.py "${args[@]}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AshenBuilds-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error
+          retention-days: 14

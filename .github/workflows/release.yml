@@ -1,0 +1,89 @@
+name: Draft release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing main-branch tag to prepare, for example v1.0.1
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: draft-release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      commit: ${{ steps.tag.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve release tag on main history
+        id: tag
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        shell: bash
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo 'Release tag must have the form vX.Y.Z' >&2
+            exit 1
+          fi
+          git show-ref --verify "refs/tags/$RELEASE_TAG"
+          commit=$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")
+          git merge-base --is-ancestor "$commit" refs/remotes/origin/main
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+
+  checks:
+    needs: resolve
+    uses: ./.github/workflows/tests.yml
+    with:
+      ref: ${{ needs.resolve.outputs.commit }}
+      tag: ${{ needs.resolve.outputs.tag }}
+
+  draft:
+    needs: [resolve, checks]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.commit }}
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Package the verified tag
+        env:
+          RELEASE_TAG: ${{ needs.resolve.outputs.tag }}
+        run: python tools/package_release.py --tag "$RELEASE_TAG" --output-dir dist
+
+      # A maintainer publishes the draft only after the in-game smoke check.
+      # Existing releases are never overwritten by a retry.
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.resolve.outputs.tag }}
+          RELEASE_COMMIT: ${{ needs.resolve.outputs.commit }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/*.zip dist/*.sha256 \
+            --draft --verify-tag --target "$RELEASE_COMMIT" \
+            --title "Ashen Builds $RELEASE_TAG (Shadgy)" \
+            --notes-file CHANGELOG.md

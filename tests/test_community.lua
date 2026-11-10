@@ -24,7 +24,7 @@ check("newer version announced once", notices == 1)
 printed = {}
 FireEvent("CHAT_MSG_ADDON", "ASHB", "Q~1~1~1~0.9.7", "GUILD", "Older")
 check("older versions do not trigger the notice", table.getn(printed) == 0)
-check("version is 1.0.0", AB.VERSION == "1.0.0")
+check("runtime version matches addon metadata", AB.VERSION == EXPECTED_ADDON_VERSION)
 
 -- Opting out of the realm channel.
 local left = false

@@ -5,7 +5,7 @@ Each tests/test_*.lua suite gets a fresh Lua state with the WoW API stub
 client would. A suite may have a tests/<name>.pre.lua that runs before the addon
 loads. Suites report with check(label, condition).
 
-usage: python tests/run.py [suite-name-substring]      (needs: pip install lupa)
+usage: python tests/run.py [suite-name-substring]      (see requirements-dev.txt)
 """
 import glob, os, re, sys
 
@@ -21,7 +21,7 @@ def toc_files():
 
 
 def read(path):
-    with open(path, encoding="utf-8", errors="replace") as f:
+    with open(path, encoding="utf-8") as f:
         return f.read().replace("\r", "")
 
 
@@ -38,6 +38,11 @@ def run_suite(path):
             print("   FAIL", label)
 
     lua.globals().check = check
+    toc = read(os.path.join(ADDON, "AshenBuilds.toc"))
+    version = re.search(r"^## Version:\s*(\S+)\s*$", toc, re.M)
+    if not version:
+        raise ValueError("AshenBuilds.toc has no Version metadata")
+    lua.globals().EXPECTED_ADDON_VERSION = version.group(1)
     lua.execute(read(os.path.join(TESTS, "wowstub.lua")))
     pre = path[:-4] + ".pre.lua"
     if os.path.exists(pre):
@@ -80,10 +85,14 @@ def lint():
 
 def main():
     only = sys.argv[1] if len(sys.argv) > 1 else ""
+    suites = [path for path in sorted(glob.glob(os.path.join(TESTS, "test_*.lua")))
+              if only in os.path.basename(path) and not path.endswith(".pre.lua")]
+    if not suites:
+        print("NO TEST SUITES MATCH: %r" % only)
+        sys.exit(1)
     ok = lint()
-    for path in sorted(glob.glob(os.path.join(TESTS, "test_*.lua"))):
-        if only in os.path.basename(path) and not path.endswith(".pre.lua"):
-            ok = run_suite(path) and ok
+    for path in suites:
+        ok = run_suite(path) and ok
     print("ALL PASSED" if ok else "FAILURES")
     sys.exit(0 if ok else 1)
 

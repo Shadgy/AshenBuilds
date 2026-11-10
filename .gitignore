@@ -2,3 +2,5 @@ tools/work/
 *.sqlite
 *.sqlite.br
 __pycache__/
+.venv/
+dist/

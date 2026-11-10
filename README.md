@@ -1,5 +1,19 @@
 # Ashen Builds
 
+**Maintenance fork:** [Shadgy/AshenBuilds](https://github.com/Shadgy/AshenBuilds).
+Based on [Tracer96/AshenBuilds](https://github.com/Tracer96/AshenBuilds), including
+the upstream fixes merged on 2026-09-30. Original addon authorship is preserved below.
+
+Version **1.0.1** is the initial maintenance candidate. Install a ZIP from this fork's
+Releases page when one is published; candidate ZIPs are available from successful
+GitHub Actions runs. A candidate has passed offline checks but still needs a game-client
+smoke check. Extract the single `AshenBuilds` folder into `Interface\AddOns`.
+
+See [CHANGELOG.md](CHANGELOG.md) for fork changes,
+[UPSTREAM.md](UPSTREAM.md) for provenance and
+[maintenance guide](https://github.com/Shadgy/AshenBuilds/blob/main/docs/MAINTENANCE.md)
+for testing and future updates.
+
 An all-class gear and talent planner for **Turtle WoW** (1.12 client), by The Ashen Banner & Claude AI
 
 Plan a character with any class, race and level. Equip items from an embedded database of every
@@ -155,7 +169,7 @@ an item (or loading a saved build) takes you back to the Planner.
   `/ab debugset <itemID>` (how an item's set is resolved), `/ab model probe [slot]` and
   `/ab model undress` (3D preview diagnostics).
 - **Tests:** `python tests/run.py` runs every suite in `tests/` against the addon inside a stub of
-  the WoW API (needs `pip install lupa`). CI also compiles every file with Lua 5.0, the client's
+  the WoW API (install `requirements-dev.txt`). CI also compiles every file with Lua 5.0, the client's
   version, so 5.1-only syntax is caught.
 
 ### Code layout
