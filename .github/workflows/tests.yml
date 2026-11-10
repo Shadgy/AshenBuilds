@@ -42,8 +42,13 @@ jobs:
       - name: Build verified Lua 5.0.3
         shell: bash
         run: |
-          curl --fail --location --proto '=https' --tlsv1.2 --retry 3 \
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --connect-timeout 10 --max-time 30 --retry 1 \
             https://www.lua.org/ftp/lua-5.0.3.tar.gz \
+            --output "$RUNNER_TEMP/lua-5.0.3.tar.gz" || \
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --connect-timeout 10 --max-time 30 --retry 1 \
+            https://distfiles.macports.org/lua50/lua-5.0.3.tar.gz \
             --output "$RUNNER_TEMP/lua-5.0.3.tar.gz"
           echo "1193a61b0e08acaa6eee0eecf29709179ee49c71baebc59b682a25c3b5a45671  $RUNNER_TEMP/lua-5.0.3.tar.gz" | sha256sum --check
           tar xzf "$RUNNER_TEMP/lua-5.0.3.tar.gz" -C "$RUNNER_TEMP"

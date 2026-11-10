@@ -7,6 +7,7 @@
 - Establish Shadgy's maintenance fork from upstream revision `bd141a5`.
 - Add validated, reproducible installation ZIPs with build provenance and SHA256 checksums.
 - Add automated package checks, pinned test dependencies and a draft-release workflow.
+- Bound compiler downloads and use a checksum-verified mirror if the Lua server is unavailable.
 - Keep the TOC and runtime version synchronized with one version command.
 - Make an empty test selection fail and read Lua sources as strict UTF-8.
 - Preserve the `AshenBuilds` installation folder, `AshenBuildsDB` saves and community protocol.
