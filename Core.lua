@@ -124,11 +124,7 @@ local function AB_CharKey() return (UnitName("player") or "?") .. "-" .. (GetRea
 
 -- A planner build nobody has worked on yet: it follows the character.
 local function AB_IsUntouched(build)
-  if not build or build.savedName or build.manual then return false end
-  local slot, id, key, rank
-  for slot, id in pairs(build.items or {}) do return false end
-  for key, rank in pairs((build.talents and build.talents.points) or {}) do if (tonumber(rank) or 0) > 0 then return false end end
-  return true
+  return build and not build.savedName and not AshenBuilds:HasUnsavedChanges(build)
 end
 AshenBuilds.IsUntouchedBuild = AB_IsUntouched
 
@@ -459,35 +455,6 @@ local function AB_CleanName(name)
 end
 AshenBuilds.CleanBuildName = AB_CleanName
 
--- current.savedName remembers which saved build the planner is editing, so saving under a
--- new name renames that build instead of creating a copy. saveAs=true always makes a copy.
-function AshenBuilds:SaveBuild(name, saveAs)
-  name = AB_CleanName(name or self.current.name); if name == "" then name = "Unnamed Build" end
-  local old = self.current.savedName
-  if old and AshenBuildsDB.builds[old] and old ~= name and not saveAs then
-    if not self:RenameBuild(old, name) then return false end
-  elseif AshenBuildsDB.builds[name] and name ~= old then
-    AB_Print("A saved build named |cffffffff"..name.."|r already exists. Load it or delete it first, or pick another name.")
-    return false
-  end
-  self.current.name=name; self.current.savedName=name; self.current.updated=time()
-  local copy=self:DeepCopy(self.current); copy.savedName=nil
-  AshenBuildsDB.builds[name]=copy; AshenBuildsDB.current=self.current
-  AB_Print("Saved |cffffffff"..name.."|r."); self:RefreshBuildList(); self:RefreshUI()
-  if self.OnBuildSaved then self:OnBuildSaved(name) end
-  return true
-end
-
--- Writes the planner back into the saved build it came from, so edits to a saved
--- build (gear, enchants, talents, class...) survive switching builds or logging
--- out. Renaming and republishing still wait for an explicit Save.
-function AshenBuilds:AutoSave()
-  local name = self.current and self.current.savedName
-  if not name or not AshenBuildsDB.builds[name] then return end
-  local copy = self:DeepCopy(self.current); copy.savedName = nil; copy.name = name
-  AshenBuildsDB.builds[name] = copy
-end
-
 -- True when a build has anything worth keeping.
 function AshenBuilds:BuildHasContent(build)
   if next(build.items or {}) or next(build.enchants or {}) then return true end
@@ -501,11 +468,21 @@ function AshenBuilds:BuildHasContent(build)
   return next((build.talents and build.talents.points) or {}) and true or false
 end
 
--- Runs fn now, or after a confirmation when it would throw away a never-saved build.
+-- A linked draft can contain edits to a saved build as well as a new plan.
 function AshenBuilds:ConfirmDiscard(what, fn)
-  if self.current.savedName or not self:BuildHasContent(self.current) or not self.ShowPrompt then fn(); return true end
-  self:ShowPrompt({title="UNSAVED BUILD", text="Your current build hasn't been saved.\nDiscard it and load |cffffffff"..what.."|r?", accept="Discard", onAccept=fn})
+  if not self:HasUnsavedChanges() or not self.ShowPrompt then fn(); return true end
+  local draft = self.current
+  self:ShowPrompt({title="UNSAVED CHANGES", text="Discard your changes and load |cffffffff"..what.."|r?", accept="Discard",
+    onAccept=function() if self.current==draft then fn() end end})
   return false
+end
+
+function AshenBuilds:StartNewBuild()
+  return self:ConfirmDiscard("a new build",function()
+    self.current=AB_NewBuild("New Build")
+    self.selectedBuild=nil
+    self:RefreshUI()
+  end)
 end
 
 function AshenBuilds:RenameBuild(old, new)
@@ -527,15 +504,16 @@ function AshenBuilds:RenameBuild(old, new)
   return true
 end
 
-function AshenBuilds:LoadBuild(name)
-  local build=AshenBuildsDB.builds[name]; if not build then return end
-  self.current=self:DeepCopy(build); self.current.name=name; self.current.savedName=name; self:MigrateBuild(self.current); AshenBuildsDB.current=self.current; self:RefreshUI(); AB_Print("Loaded |cffffffff"..name.."|r.")
-end
 function AshenBuilds:DeleteBuild(name)
   if not AshenBuildsDB.builds[name] then return end
   if self.OnBuildDeleted then self:OnBuildDeleted(name) end
   AshenBuildsDB.builds[name]=nil; if self.selectedBuild==name then self.selectedBuild=nil end
-  if self.current.savedName==name then self.current.savedName=nil end
+  if self.current.savedName==name then
+    self.current.savedName=nil
+    self.current._savedRevision=nil
+    self.current._savedSignature=nil
+    self:RefreshSaveState()
+  end
   self:RefreshBuildList(); AB_Print("Deleted |cffffffff"..name.."|r.")
 end
 function AshenBuilds:DeepCopy(value)
@@ -1002,8 +980,7 @@ eventFrame:SetScript("OnEvent",function()
       if AB.RefreshUI then AB:RefreshUI() end
     end
   elseif event=="PLAYER_LOGOUT" then
-    -- Loading a saved build or starting a new one replaces AshenBuildsDB.current.
-    if AshenBuildsDB and AshenBuildsDB.currentByChar then AshenBuildsDB.currentByChar[AB_CharKey()]=AshenBuildsDB.current end
+    AB:RememberDraft()
   elseif event=="ADDON_LOADED" and arg1=="AshenBuilds" then
     AshenBuilds:InitializeDB(); AshenBuilds:CreateUI(); AshenBuilds:SetupTabs()
     SLASH_ASHENBUILDS1="/ab"; SLASH_ASHENBUILDS2="/ashenbuilds"
@@ -1012,7 +989,7 @@ eventFrame:SetScript("OnEvent",function()
       local split=string.find(msg," ",1,true)
       local cmd=split and string.sub(msg,1,split-1) or msg
       local arg=split and string.sub(msg,split+1) or ""
-      if cmd=="reset" then AshenBuilds.current=AB_NewBuild("New Build"); AshenBuildsDB.current=AshenBuilds.current; AshenBuilds:RefreshUI()
+      if cmd=="reset" then AshenBuilds:StartNewBuild()
       elseif cmd=="importgear" then AshenBuilds:ImportEquipped()
       elseif cmd=="minimap" then AshenBuilds:ToggleMinimapButton()
       elseif cmd=="model" then

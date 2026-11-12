@@ -43,10 +43,9 @@ Checked sources:
 
 ## Saving and checking
 
-Book selections are stored in `weaponSkillQuests` inside the local saved plan and
-participate in revision-aware autosave. Reading the stat panel or selecting which
-family to inspect does not modify a saved build. Existing AB2/AB3 shared-code formats
-are unchanged and do not carry the local selections; select books again after import.
+Book selections are stored in `weaponSkillQuests` in the current draft. Use **Save
+Changes** to commit them to the saved build. AB2/AB3 codes omit the local book
+selections. Select books again after importing a code.
 
 In game, compare the same equipped weapon with the checkbox off and on. With no
 other skill bonuses, a level-60 Human Sword changes from 303 to 308; a character

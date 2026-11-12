@@ -151,8 +151,9 @@ Type `/ab` in game, or click the ember icon on the minimap.
 - Hover any total for a breakdown of where it comes from (base, gear, talents, racials).
 - **Model preview:** switch the center panel to a 3D model wearing the planned gear. Drag to turn,
   scroll to zoom. It uses your own character's race, and only items your game client has cached.
-- **Saved builds** save automatically once saved the first time. Rename, delete, or use Save As to make
-  a copy. Export and import builds as short codes, including talents.
+- **Saved builds** update when you click **Save Changes**. Edits stay in the planner draft until
+  you save them. Use **Save As** to keep a separate copy. Export and import builds as short codes,
+  including talents.
 
 <img width="990" height="912" alt="image" src="https://github.com/user-attachments/assets/b4555ee9-e21c-49be-8368-4eada29d543b" />
 

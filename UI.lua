@@ -171,17 +171,21 @@ function AB:CreateUI()
 
   local nameBox=CreateFrame("EditBox","AshenBuildsNameBox",f,"InputBoxTemplate"); nameBox:SetWidth(220); nameBox:SetHeight(24); nameBox:SetPoint("TOPLEFT",f,"TOPLEFT",24,-48); nameBox:SetAutoFocus(false); self.nameBox=nameBox
   -- Save is the one primary action; everything else on this row is a quieter secondary button.
-  local save=MakeButton(f,"Save",64,22); save:SetPoint("LEFT",nameBox,"RIGHT",6,0); save:SetScript("OnClick",function() AB:SaveBuild(AB.nameBox:GetText()) end)
+  local save=MakeButton(f,"Save Changes",96,22); save:SetPoint("LEFT",nameBox,"RIGHT",6,0); save:SetScript("OnClick",function() AB:SaveBuild(AB.nameBox:GetText()) end); self.saveButton=save
   local function Quiet(text,w) local b=MakeButton(f,text,w,22); AB:SkinQuietButton(b); return b end
   local saveAs=Quiet("Save As",70); saveAs:SetPoint("LEFT",save,"RIGHT",4,0); saveAs:SetScript("OnClick",function() AB:ShowPrompt({title="SAVE AS NEW BUILD",text="Name for the copy:",edit=true,default=AB.nameBox:GetText(),accept="Save",onAccept=function(text) AB:SaveBuild(text,true) end}) end)
-  nameBox:SetScript("OnEnterPressed",function() this:ClearFocus(); AB:SaveBuild(this:GetText()) end); nameBox:SetScript("OnEscapePressed",function() this:ClearFocus() end)
-  local new=Quiet("New",54); new:SetPoint("LEFT",saveAs,"RIGHT",4,0); new:SetScript("OnClick",function() AB:ConfirmDiscard("a new build",function() AB.current=AB.NewBuildData("New Build"); AshenBuildsDB.current=AB.current; AB.selectedBuild=nil; AB:RefreshUI() end) end)
+  nameBox:SetScript("OnEnterPressed",function() this:ClearFocus() end); nameBox:SetScript("OnEscapePressed",function() this:ClearFocus() end)
+  local new=Quiet("New",54); new:SetPoint("LEFT",saveAs,"RIGHT",4,0); new:SetScript("OnClick",function() AB:StartNewBuild() end)
   local clear=Quiet("Clear Gear",82); clear:SetPoint("LEFT",new,"RIGHT",4,0); clear:SetScript("OnClick",function() AB.current.items={}; AB.current.enchants={}; AB:RefreshUI() end)
   local export=Quiet("Export",62); export:SetPoint("LEFT",clear,"RIGHT",4,0); export:SetScript("OnClick",function() AB:ShowCodeDialog("Export Build",AB:ExportBuild(),false) end)
   local import=Quiet("Import",62); import:SetPoint("LEFT",export,"RIGHT",4,0); import:SetScript("OnClick",function() AB:ShowCodeDialog("Import Build","",true) end)
   self.saveStateText=f:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall"); self.saveStateText:SetPoint("LEFT",import,"RIGHT",12,0)
-  -- The typed name is kept on the build right away, so a refresh never wipes it; Save still decides whether it renames.
-  nameBox:SetScript("OnTextChanged",function() if AB.current then AB.current.name=this:GetText() end end)
+  nameBox:SetScript("OnTextChanged",function()
+    if AB.current and AB.current.name~=this:GetText() then
+      AB.current.name=this:GetText()
+      AB:RefreshSaveState()
+    end
+  end)
 
   local g=AB.THEME.gold
   local function Profile(label,x,w,kind,getFn,setFn)
@@ -537,14 +541,22 @@ function AB:ShowSlotTooltip(button)
   local id=self.current.items[button.slot] or 0; if id>0 then self:ShowItemTooltip(button,id); local eid=self.current.enchants[button.slot] or 0; local e=AshenBuildsEnchants[eid]; if e then GameTooltip:AddLine(" "); GameTooltip:AddLine("Enchanted: "..e.n,0.1,1,0.1); local sum=self:StatSummary(e.stats); if sum=="" then sum=e.tip or "" end; if sum~="" then GameTooltip:AddLine(sum,0.1,1,0.1,true) end; self:AddAvailabilityTooltip(self:GetEnchantAvailability(eid)); GameTooltip:Show() end else GameTooltip:SetOwner(button,"ANCHOR_RIGHT"); GameTooltip:SetText(self.SLOT_LABELS[button.slot].." - Empty",.6,.65,.75); GameTooltip:AddLine("Click to choose an item",1,1,1); GameTooltip:Show() end
 end
 
-function AB:RefreshUI()
-  -- Every change to the build ends in a refresh, so this is where edits are kept.
-  self:AutoSave()
-  if not self.frame then return end
-  if self.saveStateText then
-    if self.current.savedName then self.saveStateText:SetText("|cff7fd97fChanges save automatically|r") else self.saveStateText:SetText("|cffffb347Not saved yet - press Save|r") end
+function AB:RefreshSaveState()
+  if not self.saveStateText or not self.current then return end
+  if self:HasUnsavedChanges() then
+    self.saveStateText:SetText("|cffffb347Unsaved changes|r")
+  elseif self.current.savedName then
+    self.saveStateText:SetText("|cff7fd97fSaved|r")
+  else
+    self.saveStateText:SetText("New draft")
   end
+end
+
+function AB:RefreshUI()
+  self:RememberDraft()
+  if not self.frame then return end
   self.nameBox:SetText(self.current.name or "New Build"); self.classButton:Refresh(); self.raceButton:Refresh(); self.specButton:Refresh(); self.levelBox:SetText(self:GetBuildLevel())
+  self:RefreshSaveState()
   self:RefreshWeaponSkillQuestControls()
   local slot,b,id,item,c,enchant
   local muted=AB.THEME.muted

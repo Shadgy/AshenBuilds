@@ -59,7 +59,9 @@ local rev=AshenBuildsDB.builds["Quest persistence"]._revision
 A:SetWeaponSkillQuest("Sword",false)
 check("unchanged checkbox state does not dirty saved content",AshenBuildsDB.builds["Quest persistence"]._revision==rev and not A.current.weaponSkillQuests)
 A:SetWeaponSkillQuest("Sword",true)
-check("checkbox change advances saved revision",AshenBuildsDB.builds["Quest persistence"]._revision==rev+1)
+check("checkbox changes stay in the draft before Save",A:HasUnsavedChanges() and A:HasWeaponSkillQuest(A.current,"Sword") and not A:HasWeaponSkillQuest(AshenBuildsDB.builds["Quest persistence"],"Sword") and AshenBuildsDB.builds["Quest persistence"]._revision==rev)
+A:SaveBuild("Quest persistence")
+check("explicit Save advances the quest build revision",AshenBuildsDB.builds["Quest persistence"]._revision==rev+1)
 A:LoadBuild("Quest persistence")
 check("saved build reload retains family quest",A:HasWeaponSkillQuest(A.current,"Sword"))
 local questOnly=A.NewBuildData("Quest-only plan");questOnly.level=60
@@ -68,12 +70,15 @@ questOnly.weaponSkillQuests={Sword=false}
 check("unchecked quest alone is not content",not A:BuildHasContent(questOnly))
 questOnly.weaponSkillQuests.Sword=true
 check("quest-only plan counts as unsaved content",A:BuildHasContent(questOnly))
-local oldInventory=GetInventoryItemLink
+local oldInventory,oldPrompt=GetInventoryItemLink,A.ShowPrompt
 GetInventoryItemLink=function() return nil end
+local pending
+A.ShowPrompt=function(_,prompt) pending=prompt end
 questOnly.class="Paladin";A.current=questOnly
 A:ImportEquipped()
-local preserved=AshenBuildsDB.builds["Quest-only plan (before equipment import)"]
-check("cross-class import preserves a quest-only plan",preserved and preserved.class=="Paladin" and A:HasWeaponSkillQuest(preserved,"Sword"))
+check("cross-class import asks before dropping a quest-only draft",pending and A.current.class=="Paladin" and A:HasWeaponSkillQuest(A.current,"Sword"))
+if pending then pending.onAccept() end
+check("cross-class import does not add a quest draft to the library",not AshenBuildsDB.builds["Quest-only plan (before equipment import)"])
 check("cross-class import clears assumed quest completions",A.current.class=="Warrior" and not A.current.weaponSkillQuests)
-GetInventoryItemLink=oldInventory
+GetInventoryItemLink=oldInventory;A.ShowPrompt=oldPrompt
 A.current=current

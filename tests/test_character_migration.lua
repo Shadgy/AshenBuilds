@@ -92,7 +92,13 @@ Login("LegacyOtherClass","Mage","MAGE","Gnome")
 FireEvent("PLAYER_LOGOUT");ReloadSavedVariables()
 Login("LegacyNamedOwner","Warrior","WARRIOR","Human")
 check("genuine shared legacy migration restores a matching saved name",A.current.savedName=="Legacy named build")
+local legacyRevision=AshenBuildsDB.builds["Legacy named build"]._revision
 A.current.items.MAINHAND=19019;A:RefreshUI()
-check("migrated legacy link retains intentional autosave",AshenBuildsDB.builds["Legacy named build"].items.MAINHAND==19019)
+check("editing a migrated plan leaves the library unchanged",A:HasUnsavedChanges() and not AshenBuildsDB.builds["Legacy named build"].items.MAINHAND)
+FireEvent("PLAYER_LOGOUT");ReloadSavedVariables()
+Login("LegacyNamedOwner","Warrior","WARRIOR","Human")
+check("a valid pending edit survives reload with its original saved link",A.current.savedName=="Legacy named build" and A.current.items.MAINHAND==19019 and A:HasUnsavedChanges())
+check("reload does not commit the pending edit",not AshenBuildsDB.builds["Legacy named build"].items.MAINHAND and AshenBuildsDB.builds["Legacy named build"]._revision==legacyRevision)
+check("explicit Save commits the restored draft to the intended library entry",A:SaveBuild("Legacy named build")==true and AshenBuildsDB.builds["Legacy named build"].items.MAINHAND==19019 and not A:HasUnsavedChanges())
 
 UnitName=oldName;UnitClass=oldClass;UnitRace=oldRace;AshenBuildsDB=oldDB;A.current=oldCurrent

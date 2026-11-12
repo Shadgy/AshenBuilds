@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Commit planner edits to Saved Builds only with Save Changes or Save As. Keep the working draft per character across reloads and ask before replacing unsaved edits.
+- Preserve existing library entries and revision checks when upgrading from autosave. A valid pending draft retains its link to the saved version. A conflicting draft stays available as a separate plan.
+
 ## 1.0.8 — 2026-11-10
 
 - Add an Enchant Database tab beside Item Database. Browse without equipped gear; search names/effects, filter by slot/stat/content phase, page results and choose a compatible equipped target. Share source/phase controls with existing pickers; keep Unverified off by default.

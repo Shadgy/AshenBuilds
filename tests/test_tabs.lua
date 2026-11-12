@@ -30,11 +30,43 @@ end
 Click(AB.plannerButton)
 check("Planner tab returns to the planner", planner() and not AB.itemBrowser:IsShown() and active(AB.plannerButton))
 
+local savedName="Planner manual save test"
+AB:SaveBuild(savedName)
 Click(AB.slotButtons.HEAD)
 check("a gear slot opens the Item Database for it", AB.itemBrowser:IsShown() and AB.browserSlot == "HEAD")
 local row = AB.itemRows[1]
 if row and row.itemID then Click(row) end
 check("picking an item returns to the planner", planner() and AB.current.items.HEAD ~= nil)
+local picked=AB.current.items.HEAD
+check("picking an item only changes the planner draft", AB:HasUnsavedChanges() and not AshenBuildsDB.builds[savedName].items.HEAD)
+check("planner shows that edits are unsaved", string.find(AB.saveStateText:GetText(),"Unsaved changes",1,true)~=nil)
+AB.nameBox:SetText("Unsaved title")
+Fire(AB.nameBox,"OnEnterPressed")
+check("Enter in the name field does not save or rename", AB.current.name=="Unsaved title" and AB.current.savedName==savedName and not AshenBuildsDB.builds["Unsaved title"])
+AB.nameBox:SetText(savedName)
+Click(AB.savedBuildsButton)
+local buildRow
+for _,candidate in ipairs(AB.buildRows) do if candidate.buildName==savedName then buildRow=candidate end end
+Click(buildRow)
+check("loading the same saved build prompts before replacing its edited draft", AB.promptDialog:IsShown() and AB.current.items.HEAD==picked)
+local cancel
+for _,button in ipairs({AB.promptDialog:GetChildren()}) do
+  if button:GetText()=="Cancel" then cancel=button; break end
+end
+Click(cancel)
+check("cancelling a build load keeps the edit", AB.current.items.HEAD==picked and not AshenBuildsDB.builds[savedName].items.HEAD)
+Click(AB.plannerButton)
+check("planner offers the Save Changes action", AB.saveButton:GetText()=="Save Changes")
+Click(AB.saveButton)
+check("Save Changes commits the selected gear and clears the unsaved state", AshenBuildsDB.builds[savedName].items.HEAD==picked and not AB:HasUnsavedChanges())
+check("planner clears its unsaved label after Save Changes", not string.find(AB.saveStateText:GetText(),"Unsaved changes",1,true))
+
+Click(AB.slotButtons.HEAD,"RightButton")
+local editedDraft=AB.current
+SlashCmdList["ASHENBUILDS"]("reset")
+check("reset waits before replacing edits to a saved build", AB.promptDialog:IsShown() and AB.current==editedDraft and AB:HasUnsavedChanges())
+Click(AB.promptDialog.accept)
+check("discarding the reset draft keeps the saved gear", AB.current~=editedDraft and AshenBuildsDB.builds[savedName].items.HEAD==picked)
 
 local found = false
 for _, n in ipairs(UISpecialFrames) do if n == "AshenBuildsItemBrowser" or n == "AshenBuildsTalentFrame" then found = true end end

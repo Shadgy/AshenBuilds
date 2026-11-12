@@ -17,7 +17,7 @@ check("pending or cancelled import keeps the original draft",A.current==draft an
 pending.onAccept()
 check("accepted import replaces gear and invokes completion once",A.current~=draft and A.current.items.MAINHAND==19019 and not A.current.items.HEAD and callbacks==1)
 
-A.current=Build("Blank");A:RefreshUI();pending=nil;prompts=0
+A.current=A.NewBuildData("New Build");A:RefreshUI();pending=nil;prompts=0
 check("empty plan imports immediately without confirmation",A:ImportBuild(code,function() callbacks=callbacks+1 end)==true and not pending and prompts==0 and callbacks==2)
 local before=A.current
 check("invalid code is rejected before asking about draft",A:ImportBuild(ReplaceToken(code,2,"!"))==false and A.current==before and prompts==0)
