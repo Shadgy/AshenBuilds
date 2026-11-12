@@ -1,5 +1,5 @@
 AshenBuilds = AshenBuilds or {}
-AshenBuilds.VERSION = "1.0.8"
+AshenBuilds.VERSION = "1.0.9"
 
 AshenBuilds.SLOTS = {
   "HEAD","NECK","SHOULDER","BACK","CHEST","SHIRT","TABARD","WRIST","HANDS","WAIST","LEGS","FEET",

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.9 — 2026-11-12
 
 - Commit planner edits to Saved Builds only with Save Changes or Save As. Keep the working draft per character across reloads and ask before replacing unsaved edits.
 - Preserve existing library entries and revision checks when upgrading from autosave. A valid pending draft retains its link to the saved version. A conflicting draft stays available as a separate plan.

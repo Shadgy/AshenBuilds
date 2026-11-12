@@ -4,13 +4,13 @@
 Based on [Tracer96/AshenBuilds](https://github.com/Tracer96/AshenBuilds), including
 the upstream fixes merged on 2026-09-30. Original addon authorship is preserved below.
 
-Version **1.0.8** is the maintained build for OctoWoW. For launcher installation,
+Version **1.0.9** is the current Octo Launcher build. For launcher installation,
 open **Addons → Add custom git addon**, paste **https://github.com/Shadgy/AshenBuilds**
 and select **Install**. The launcher installs this repository's default `main`
 branch and can pull later updates from the same source. Keep only one copy of
 AshenBuilds enabled; existing character/build data is stored separately in `WTF`.
 
-For manual installation, use the installation ZIP from
+For manual installation, download the latest packaged version from
 [Releases](https://github.com/Shadgy/AshenBuilds/releases/latest), then extract its
 single `AshenBuilds` folder into `Interface\AddOns`. Back up existing addon and
 saved-variable files before replacing an earlier installation.
@@ -20,7 +20,13 @@ See [CHANGELOG.md](CHANGELOG.md) for fork changes,
 [maintenance guide](https://github.com/Shadgy/AshenBuilds/blob/main/docs/MAINTENANCE.md)
 for testing and future updates.
 
-### What is new in 1.0.8
+### What is new in 1.0.9
+
+Planner edits stay in a draft until you click **Save Changes**. **Save As** keeps
+a separate copy. The current draft survives a reload, and the planner asks before
+replacing unsaved edits with another build.
+
+### Included from 1.0.8
 
 **Enchant Database** sits beside Item Database. Browse without equipped gear,
 filter by slot/stat and the shared Octo phase/source settings, then choose a
