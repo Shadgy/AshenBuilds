@@ -1,4 +1,4 @@
--- Tabs: Talents, Item Database, Saved Builds and Community are pages inside the main window.
+-- Tabs are pages inside the main window.
 local AB = AshenBuilds
 SlashCmdList["ASHENBUILDS"]("")
 local oldSet = AB.SetTabActive
@@ -8,21 +8,22 @@ local function planner() return AB.plannerPage:IsShown() end
 local function active(b) return b._tabActive end
 
 check("starts on the planner", planner() and active(AB.plannerButton))
+check("planner has five tabs", table.getn(AB.tabs) == 5)
 check("pages live inside the main window", AB.talentFrame:GetParent() == AB.frame and AB.itemBrowser:GetParent() == AB.frame
-  and AB.buildBrowser:GetParent() == AB.frame and AB.communityFrame:GetParent() == AB.frame)
+  and AB.buildBrowser:GetParent() == AB.frame and AB.enchantDatabase:GetParent() == AB.frame)
 check("gear, stats and SIM DPS belong to the Planner page", AB.slotButtons.HEAD:GetParent() == AB.plannerPage and AB.simPanel:GetParent() == AB.plannerPage)
 check("talent trees fit without scaling", AB.talentFrame:GetScale() == 1 and AB.frame:GetWidth() >= AB.talentFrame:GetWidth())
 
 Click(AB.talentOpenButton)
 check("Talents tab hides the planner", AB.talentFrame:IsShown() and not planner() and active(AB.talentOpenButton) and not active(AB.plannerButton))
-Click(AB.communityButton)
-check("Community replaces Talents", AB.communityFrame:IsShown() and not AB.talentFrame:IsShown())
+Click(AB.enchantDatabaseButton)
+check("Enchant Database replaces Talents", AB.enchantDatabase:IsShown() and not AB.talentFrame:IsShown())
 Click(AB.savedBuildsButton)
-check("Saved Builds replaces Community", AB.buildBrowser:IsShown() and not AB.communityFrame:IsShown())
+check("Saved Builds replaces Enchant Database", AB.buildBrowser:IsShown() and not AB.enchantDatabase:IsShown())
 Click(AB.itemDatabaseButton)
 check("Item Database replaces Saved Builds", AB.itemBrowser:IsShown() and not AB.buildBrowser:IsShown())
 check("full height while a page is open", AB.frame:GetHeight() == 900)
-for _, w in ipairs({AB.itemBrowser, AB.buildBrowser, AB.communityFrame}) do
+for _, w in ipairs({AB.itemBrowser, AB.buildBrowser, AB.enchantDatabase}) do
   local pts = {}
   for _, q in ipairs(w._points or {}) do table.insert(pts, q[1]) end
   check(w:GetName() .. " fills the page area", table.concat(pts, ",") == "TOPLEFT,BOTTOMRIGHT")
@@ -78,7 +79,7 @@ local function walk(f, lvl, bad)
     walk(k, k:GetFrameLevel(), bad)
   end
 end
-for _, w in ipairs({AB.talentFrame, AB.communityFrame, AB.buildBrowser, AB.itemBrowser}) do
+for _, w in ipairs({AB.talentFrame, AB.enchantDatabase, AB.buildBrowser, AB.itemBrowser}) do
   local bad = {}; walk(w, w:GetFrameLevel(), bad)
   check(w:GetName() .. " contents draw above it", table.getn(bad) == 0)
 end

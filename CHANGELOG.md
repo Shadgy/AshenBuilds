@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.10
+
+- Remove Community publishing, voting and automatic synchronization over game chat and addon messages.
+- Use Share Build and Ctrl+C to copy a code from the planner or a saved build. Use Import Build and Ctrl+V to open a code in the planner, then Save Changes to keep it.
+- Preserve saved builds, per-character drafts and AB1, AB2 and AB3 codes. Existing Community cache data is left untouched and unused.
+
 ## 1.0.9 — 2026-11-12
 
 - Commit planner edits to Saved Builds only with Save Changes or Save As. Keep the working draft per character across reloads and ask before replacing unsaved edits.

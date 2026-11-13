@@ -126,10 +126,20 @@ delete `WTF`. Fully restart the client after replacing addon files.
 - Check a second character: its current plan stays separate from the first character.
 - Inspect window textures, minimap icon, item browser and all class talent backgrounds.
 - Search items, use armor/usability filters, equip an item, add an enchant and save/load.
-- Export and import a build, confirming equipment, enchants and talents survive.
+- Click Share Build and copy the selected code with Ctrl+C. Paste it into Import
+  Build with Ctrl+V and confirm the planner opens with the same equipment, enchants
+  and talents. Repeat from Saved Builds while the planner has a different draft.
 - Run the warrior simulator and open its result/log/settings windows.
-- With a second player, check community publish/load/sync and `/ab sync off`.
 - Confirm there are no new Lua errors; record client/server version and results in the release notes.
+
+### Upgrading to 1.0.10
+
+The update keeps the saved library and per-character drafts, along with AB1, AB2
+and AB3 import compatibility. Old Community cache and settings remain in
+`AshenBuildsDB` and are unused. The addon no longer joins the old channel or
+sends chat or addon messages for build sharing. Restart the client to load the
+new version. If the client still displays the old channel, leave it manually
+with `/leave AshenBuilds`.
 
 ## Releases
 

@@ -1,6 +1,6 @@
 -- SavedVariables are shared between characters; opening a draft must never lose newer work.
 local A=AshenBuilds
-local oldDB,oldCurrent,oldRefresh,oldName,oldInventory,oldSaved,oldLevel,oldPrompt=AshenBuildsDB,A.current,A.RefreshUI,UnitName,GetInventoryItemLink,A.OnBuildSaved,UnitLevel,A.ShowPrompt
+local oldDB,oldCurrent,oldRefresh,oldName,oldInventory,oldLevel,oldPrompt=AshenBuildsDB,A.current,A.RefreshUI,UnitName,GetInventoryItemLink,UnitLevel,A.ShowPrompt
 A.RefreshUI=function(self) self:RememberDraft() end
 UnitName=function() return "CharacterA" end
 local function Build(name,notes)
@@ -28,17 +28,14 @@ check("ordinary refresh keeps a clean saved draft and revision",not A:HasUnsaved
 A.current.updated=time()+100; A.current.created=time()-100
 A:RefreshUI()
 check("timestamp-only changes are not content edits",not A:HasUnsavedChanges() and AshenBuildsDB.builds.Shared._revision==rev)
-local savedCallback,callbackCount
-callbackCount=0
-A.OnBuildSaved=function(_,name) savedCallback=name; callbackCount=callbackCount+1 end
 A.current.notes="REAL EDIT"
 A:RefreshUI()
 check("a real edit remains in the working draft until Save Changes",A:HasUnsavedChanges() and AshenBuildsDB.currentByChar["CharacterA-Realm"].notes=="REAL EDIT" and AshenBuildsDB.builds.Shared.notes==latest.notes)
-check("draft refresh does not advance the revision or publish changes",AshenBuildsDB.builds.Shared._revision==rev and callbackCount==0)
+check("draft refresh does not advance the saved revision",AshenBuildsDB.builds.Shared._revision==rev)
 check("explicit Save Changes commits the draft",A:SaveBuild("Shared")==true and AshenBuildsDB.builds.Shared.notes=="REAL EDIT")
-check("explicit Save Changes updates the baseline and callback once",not A:HasUnsavedChanges() and AshenBuildsDB.builds.Shared._revision==rev+1 and A.current._savedRevision==rev+1 and savedCallback=="Shared" and callbackCount==1)
+check("explicit Save Changes updates the baseline once",not A:HasUnsavedChanges() and AshenBuildsDB.builds.Shared._revision==rev+1 and A.current._savedRevision==rev+1)
 A:RememberDraft()
-check("remembering the saved draft does not write again",AshenBuildsDB.builds.Shared._revision==rev+1 and callbackCount==1)
+check("remembering the saved draft does not write again",AshenBuildsDB.builds.Shared._revision==rev+1)
 
 AshenBuildsDB.builds.Shared.notes="NEWER LIBRARY REVISION"
 AshenBuildsDB.builds.Shared._revision=rev+2
@@ -49,7 +46,6 @@ check("explicit Save refuses a conflicting revision",A:SaveBuild("Shared")==fals
 check("conflict preserves both versions",AshenBuildsDB.builds.Shared.notes=="NEWER LIBRARY REVISION" and A.current.notes=="MY CONFLICTING EDIT" and not A.current.savedName)
 check("Save As cannot replace an existing name",A:SaveBuild("Shared",true)==false and AshenBuildsDB.builds.Shared.notes=="NEWER LIBRARY REVISION")
 check("recovered draft can be saved under a new name",A:SaveBuild("My separate copy",true)==true and AshenBuildsDB.builds["My separate copy"].notes=="MY CONFLICTING EDIT")
-check("explicit Save As preserves the community callback",savedCallback=="My separate copy" and callbackCount==2)
 A:LoadBuild("Shared")
 check("explicit load uses latest shared version",A.current.notes=="NEWER LIBRARY REVISION")
 check("loaded current persists immediately per character",AshenBuildsDB.currentByChar["CharacterA-Realm"]==A.current)
@@ -122,4 +118,4 @@ if pending then pending.onAccept() end
 check("lower-level import clears an allocation beyond the character's budget",A.current.level==5 and not next(A.current.talents.points))
 check("accepted lower-level import stays outside the saved library",not next(AshenBuildsDB.builds))
 
-AshenBuildsDB=oldDB; A.current=oldCurrent; A.RefreshUI=oldRefresh; UnitName=oldName; GetInventoryItemLink=oldInventory; A.OnBuildSaved=oldSaved; UnitLevel=oldLevel; A.ShowPrompt=oldPrompt
+AshenBuildsDB=oldDB; A.current=oldCurrent; A.RefreshUI=oldRefresh; UnitName=oldName; GetInventoryItemLink=oldInventory; UnitLevel=oldLevel; A.ShowPrompt=oldPrompt

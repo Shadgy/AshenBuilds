@@ -1,7 +1,7 @@
 local AB = AshenBuilds
 
--- Minimap button: left-click toggles the planner, right-click toggles Community
--- Builds, drag to move it around the minimap edge (the angle is saved).
+-- Left-click toggles the planner, right-click opens Saved Builds.
+-- Drag to move it around the minimap edge (the angle is saved).
 
 local RADIUS = 80
 
@@ -47,8 +47,7 @@ function AB:CreateMinimapButton()
   b:SetScript("OnClick", function()
     if arg1 == "RightButton" then
       if not AB.frame:IsShown() then AB:ToggleUI() end
-      local i
-      for i = 1, table.getn(AB.tabs or {}) do if AB.tabs[i].frame == AB.communityFrame then AB:ToggleTab(AB.tabs[i]) end end
+      AB:ShowTab("saved")
     else
       AB:ToggleUI()
       PlaySound(AB.frame:IsShown() and "igCharacterInfoOpen" or "igCharacterInfoClose")
@@ -63,7 +62,7 @@ function AB:CreateMinimapButton()
     GameTooltip:SetOwner(this, "ANCHOR_LEFT")
     GameTooltip:SetText("Ashen Builds", 1, 0.45, 0.16)
     GameTooltip:AddLine("Left-click: open or close the planner", 1, 1, 1)
-    GameTooltip:AddLine("Right-click: community builds", 1, 1, 1)
+    GameTooltip:AddLine("Right-click: saved builds", 1, 1, 1)
     GameTooltip:AddLine("Drag: move this button", 0.7, 0.7, 0.7)
     GameTooltip:Show()
   end)

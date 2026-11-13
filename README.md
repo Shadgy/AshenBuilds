@@ -4,8 +4,7 @@
 Based on [Tracer96/AshenBuilds](https://github.com/Tracer96/AshenBuilds), including
 the upstream fixes merged on 2026-09-30. Original addon authorship is preserved below.
 
-Version **1.0.9** is the current Octo Launcher build. For launcher installation,
-open **Addons → Add custom git addon**, paste **https://github.com/Shadgy/AshenBuilds**
+For launcher installation, open **Addons → Add custom git addon**, paste **https://github.com/Shadgy/AshenBuilds**
 and select **Install**. The launcher installs this repository's default `main`
 branch and can pull later updates from the same source. Keep only one copy of
 AshenBuilds enabled; existing character/build data is stored separately in `WTF`.
@@ -20,7 +19,12 @@ See [CHANGELOG.md](CHANGELOG.md) for fork changes,
 [maintenance guide](https://github.com/Shadgy/AshenBuilds/blob/main/docs/MAINTENANCE.md)
 for testing and future updates.
 
-### What is new in 1.0.9
+### What is new in 1.0.10
+
+**Share Build** and **Import Build** use copy and paste. Automatic Community
+sharing and game chat synchronization have been removed.
+
+### Included from 1.0.9
 
 Planner edits stay in a draft until you click **Save Changes**. **Save As** keeps
 a separate copy. The current draft survives a reload, and the planner asks before
@@ -211,21 +215,16 @@ Type `/ab` in game, or click the ember icon on the minimap.
 
 <img width="725" height="793" alt="image" src="https://github.com/user-attachments/assets/109cec74-3382-4245-98a1-eb3c46b7f7d0" />
 
-### Community builds
-- Publish a saved build and every player on the realm running Ashen Builds can see, load and upvote it.
-- Builds and votes are shared player-to-player over a hidden realm channel plus guild, party and raid.
-  They persist while the author or voters are offline, and new players catch up when they log in.
-- Builds with offensive names are not listed. Right-click a build to hide every build from that
-  player (`/ab unhide <player>` shows them again).
+### Share and import builds
 
-**What is shared.** To sync, the addon joins a hidden chat channel called `AshenBuilds` and also
-uses guild, party and raid addon messages. When you publish a build, your character name is sent
-with it, together with the build's name, gear, enchants and talents, and your upvotes carry your
-character name too. Nothing is sent until you publish or vote, apart from short "what do you have?"
-sync requests. `/ab sync off` stops using the channel (useful if you are at the ten-channel limit)
-and syncs over guild and party only.
+1. Click **Share Build** in the toolbar to share the current plan, or next to an
+   entry in **Saved Builds** to share the saved version. Press **Ctrl+C** to copy
+   the selected code and send it to the recipient yourself.
+2. Click **Import Build**, paste the code with **Ctrl+V** and click **Import**.
+   The plan opens in the planner. Click **Save Changes** to keep it in your library.
 
-<img width="945" height="702" alt="image" src="https://github.com/user-attachments/assets/0703cb20-68dd-491e-b926-4f5fba998cf3" />
+Codes carry class, race, level, specialization, gear, enchants and talents.
+Earlier AB1, AB2 and AB3 codes can still be imported.
 
 ## Controls
 
@@ -236,11 +235,11 @@ and syncs over guild and party only.
 | Remove an item | Right-click a gear slot |
 | Choose an enchant | Click the enchant line under the item name (or Shift-click the slot) |
 | Add or remove a talent point | Left-click or right-click a talent |
-| Load a saved or community build | Click it in Saved Builds or Community |
-| Upvote a community build | Click the arrow in the Votes column |
+| Load a saved build | Click it in Saved Builds |
+| Open Saved Builds | Right-click the minimap button |
 | Move the minimap button | Drag it around the minimap |
 
-The top bar has five tabs: Planner, Talents, Community, Saved Builds and Item Database. They all
+The top bar has five tabs: Planner, Talents, Item Database, Enchant Database and Saved Builds. They all
 open inside the main window. Clicking a gear slot opens the Item Database for that slot, and picking
 an item (or loading a saved build) takes you back to the Planner.
 
@@ -249,16 +248,12 @@ an item (or loading a saved build) takes you back to the Planner.
 | Command | Does |
 |---|---|
 | `/ab` | Open or close the planner |
-| `/ab community` | Open community builds |
 | `/ab importgear` | Load the gear you are wearing into the planner |
 | `/ab minimap` | Hide or show the minimap button |
 | `/ab reset` | Start a fresh build |
 | `/ab sim` | Simulate the current build |
 | `/ab sim settings` | Open the simulator settings |
 | `/ab sim log` | One fight's combat log from the last run |
-| `/ab sync on` / `off` | Use the hidden realm channel for community builds, or guild and party only |
-| `/ab sync status` | Show whether you are in the realm channel and which Ashen Builds players you have heard from |
-| `/ab unhide <player>` | Show community builds from a player you hid |
 
 ## For developers
 
@@ -296,8 +291,6 @@ an item (or loading a saved build) takes you back to the Planner.
 | `ItemIndex.lua` | Item database search index |
 | `UI.lua`, `Widgets.lua`, `Theme.lua` | Planner windows, dropdowns and dialogs, ember styling |
 | `TalentEngine.lua`, `TalentUI.lua` | Talent rules, talent codes, talent window |
-| `Community.lua`, `CommunityUI.lua` | Build sharing and voting, community window |
-| `Profanity.lua` | Build name filter |
 | `Minimap.lua` | Minimap button |
 | `Sim/SimCore.lua` | Shared simulation engine: seeded RNG, event queue, auras, results, frame-spread runner |
 | `Sim/SimItems.lua` | Chance-on-hit item and enchant effects shared by melee classes |

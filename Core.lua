@@ -1,5 +1,5 @@
 AshenBuilds = AshenBuilds or {}
-AshenBuilds.VERSION = "1.0.9"
+AshenBuilds.VERSION = "1.0.10"
 
 AshenBuilds.SLOTS = {
   "HEAD","NECK","SHOULDER","BACK","CHEST","SHIRT","TABARD","WRIST","HANDS","WAIST","LEGS","FEET",
@@ -492,13 +492,10 @@ function AshenBuilds:RenameBuild(old, new)
   if new == "" then AB_Print("Build names can't be empty.") return false end
   if new == old then return true end
   if AshenBuildsDB.builds[new] then AB_Print("A saved build named |cffffffff"..new.."|r already exists.") return false end
-  local wasPublished = self.IsBuildPublished and self:IsBuildPublished(old)
-  if wasPublished then self:UnpublishBuild(old) end
   AshenBuildsDB.builds[old] = nil
   build.name = new; build.updated = time()
   AshenBuildsDB.builds[new] = build
   if self.current.savedName == old then self.current.savedName = new; self.current.name = new end
-  if wasPublished then self:PublishBuild(new) end
   AB_Print("Renamed |cffffffff"..old.."|r to |cffffffff"..new.."|r.")
   self:RefreshBuildList(); self:RefreshUI()
   return true
@@ -506,7 +503,6 @@ end
 
 function AshenBuilds:DeleteBuild(name)
   if not AshenBuildsDB.builds[name] then return end
-  if self.OnBuildDeleted then self:OnBuildDeleted(name) end
   AshenBuildsDB.builds[name]=nil; if self.selectedBuild==name then self.selectedBuild=nil end
   if self.current.savedName==name then
     self.current.savedName=nil
@@ -569,6 +565,7 @@ end
 
 function AshenBuilds:ImportBuild(code,onImported)
   if type(code)~="string" then AB_Print("Invalid build code.") return false end
+  code=string.gsub(code,"^%s*(.-)%s*$","%1")
   local legacy=string.sub(code,1,4)=="AB1."
   local build,err
   if legacy then build,err=self:DecodeLegacyBuild(code) else build,err=self:DecodeBuild(code) end
@@ -1003,16 +1000,8 @@ eventFrame:SetScript("OnEvent",function()
           local a=AshenBuilds.previewArea
           AB_Print("Model preview: "..((a and a:IsShown()) and "open" or "closed")..", using "..(AshenBuilds.borrowedModel and "the Dressing Room model" or "its own model")..", items put on last time: "..((a and a.worn) or 0)..((a and a.lastLink) and (" (e.g. "..a.lastLink..")") or "")..".")
         end
-      elseif cmd=="sync" then
-        if arg=="off" then AshenBuilds:SetChannelSync(false)
-        elseif arg=="on" then AshenBuilds:SetChannelSync(true)
-        elseif arg=="status" then AshenBuilds:PrintSyncStatus()
-        else AB_Print("Community sync over the realm channel is "..(AshenBuilds:IsChannelSyncOn() and "on" or "off")..". /ab sync off uses guild and party only; /ab sync status shows who you can reach.") end
-      elseif cmd=="unhide" then
-        local hidden=AshenBuilds:HiddenAuthors(); local key=string.lower(arg or "")
-        if hidden[key] then local n=hidden[key]; AshenBuilds:HideAuthor(n,false); AB_Print("Showing builds from "..n.." again.")
-        else AB_Print("Usage: /ab unhide <player>. Hidden players: "..(function() local t,k,v={} for k,v in pairs(hidden) do table.insert(t,v) end return table.getn(t)>0 and table.concat(t,", ") or "none" end)()) end
-      elseif cmd=="community" then if not AshenBuilds.frame:IsShown() then AshenBuilds:ToggleUI() end; AshenBuilds:OpenCommunity()
+      elseif cmd=="sync" or cmd=="community" or cmd=="unhide" then
+        AB_Print("Community sharing was removed. Use Share Build and Import Build to copy and paste build codes.")
       elseif cmd=="debugset" then
         local itemId=tonumber(arg)
         if not itemId then

@@ -325,11 +325,6 @@ function AB:ValidateTalents(build)
   return true
 end
 
--- "31/20/0"-style point split, used by the community list.
-function AB:GetTalentSplit(build)
-  return self:GetTalentPointsInTree(build,1).."/"..self:GetTalentPointsInTree(build,2).."/"..self:GetTalentPointsInTree(build,3)
-end
-
 local baseExport=AB.ExportBuild
 function AB:ExportBuild(build)
   build=build or self.current

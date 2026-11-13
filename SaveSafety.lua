@@ -125,7 +125,6 @@ function A:SaveBuild(name,saveAs)
   self.Print("Saved |cffffffff"..name.."|r.")
   self:RefreshBuildList()
   self:RefreshUI()
-  if self.OnBuildSaved then self:OnBuildSaved(name) end
   return true
 end
 

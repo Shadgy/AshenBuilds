@@ -8,11 +8,11 @@ local function Has(id)
 end
 Click(A.enchantDatabaseButton)
 check("enchant tab opens a full page without equipped items",A.enchantDatabase:IsShown() and not A.plannerPage:IsShown() and not A.itemBrowser:IsShown() and table.getn(A.enchantDatabaseMatches)>0)
-check("catalog is embedded alongside item database",A.enchantDatabase:GetParent()==A.frame and A.enchantDatabase.embedded and table.getn(A.tabs)==6)
+check("catalog is embedded alongside item database",A.enchantDatabase:GetParent()==A.frame and A.enchantDatabase.embedded)
 check("catalog starts with all slots and every rank",A.enchantDatabaseFilter.slot=="ALL" and A.enchantDatabaseFilter.lower==true)
 local widths=0
 for _,tab in ipairs(A.tabs) do widths=widths+tab.button:GetWidth() end
-check("six tabs leave room for level and class controls",A.frame:GetWidth()-24-widths-(table.getn(A.tabs)-1)*3>=422+8)
+check("tabs leave room for level and class controls",A.frame:GetWidth()-24-widths-(table.getn(A.tabs)-1)*3>=422+8)
 check("catalog respects the current phase",not Has(37))
 A.availabilityBrowser:Show();A:OpenDropdown(A.availabilityBrowser.instances)
 Click(AshenBuildsDropdownList.rows[2])

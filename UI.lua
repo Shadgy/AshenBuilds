@@ -177,8 +177,9 @@ function AB:CreateUI()
   nameBox:SetScript("OnEnterPressed",function() this:ClearFocus() end); nameBox:SetScript("OnEscapePressed",function() this:ClearFocus() end)
   local new=Quiet("New",54); new:SetPoint("LEFT",saveAs,"RIGHT",4,0); new:SetScript("OnClick",function() AB:StartNewBuild() end)
   local clear=Quiet("Clear Gear",82); clear:SetPoint("LEFT",new,"RIGHT",4,0); clear:SetScript("OnClick",function() AB.current.items={}; AB.current.enchants={}; AB:RefreshUI() end)
-  local export=Quiet("Export",62); export:SetPoint("LEFT",clear,"RIGHT",4,0); export:SetScript("OnClick",function() AB:ShowCodeDialog("Export Build",AB:ExportBuild(),false) end)
-  local import=Quiet("Import",62); import:SetPoint("LEFT",export,"RIGHT",4,0); import:SetScript("OnClick",function() AB:ShowCodeDialog("Import Build","",true) end)
+  local share=Quiet("Share Build",92); share:SetPoint("LEFT",clear,"RIGHT",4,0); share:SetScript("OnClick",function() AB:ShowCodeDialog("Share Build",AB:ExportBuild(),false) end)
+  local import=Quiet("Import Build",92); import:SetPoint("LEFT",share,"RIGHT",4,0); import:SetScript("OnClick",function() AB:ShowCodeDialog("Import Build","",true) end)
+  self.shareButton=share; self.importButton=import
   self.saveStateText=f:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall"); self.saveStateText:SetPoint("LEFT",import,"RIGHT",12,0)
   nameBox:SetScript("OnTextChanged",function()
     if AB.current and AB.current.name~=this:GetText() then
@@ -219,10 +220,6 @@ function AB:CreateUI()
   self.itemDatabaseButton=MakeButton(f,"ITEM DATABASE",118,26); self.itemDatabaseButton:SetScript("OnClick",function() AB:OpenItemBrowser("ALL") end)
   self.enchantDatabaseButton=MakeButton(f,"ENCHANT DATABASE",126,26)
   self.savedBuildsButton=MakeButton(f,"SAVED BUILDS",112,26); self.savedBuildsButton:SetScript("OnClick",function() AB:OpenBuildBrowser() end)
-  self.communityButton=MakeButton(f,"COMMUNITY",104,26); self.communityButton:SetScript("OnClick",function() AB:OpenCommunity() end)
-  self.itemDatabaseButton:SetPoint("BOTTOMRIGHT",f,"TOPRIGHT",-24,-126)
-  self.savedBuildsButton:SetPoint("RIGHT",self.itemDatabaseButton,"LEFT",-3,0)
-  self.communityButton:SetPoint("RIGHT",self.savedBuildsButton,"LEFT",-3,0)
 
   -- Everything below the header belongs to the Planner tab.
   local page=CreateFrame("Frame",nil,f); page:SetWidth(PLANNER_W); page:SetHeight(FRAME_H); page:SetPoint("TOP",f,"TOP",0,0); self.plannerPage=page
@@ -726,15 +723,14 @@ function AB:RefreshBuildList()
   local names=self:GetSavedBuildNames(); local total=table.getn(names)
   local maxOffset=math.max(0,total-BUILD_ROWS)
   if (self.buildOffset or 0)>maxOffset then self.buildOffset=maxOffset end
-  local i,row,name,pub
+  local i,row,name
   for i=1,BUILD_ROWS do
     row=self.buildRows[i]; name=names[(self.buildOffset or 0)+i]
     if name then
-      row.buildName=name; pub=self.IsBuildPublished and self:IsBuildPublished(name)
+      row.buildName=name
       local label=name
       if self.current.savedName==name then label="|cffffd100> |r"..label end
-      if pub then label=label.."  |cffffd100public|r" else local alt=self.PublishedByAlt and self:PublishedByAlt(name); if alt then label=label.."  |cffbdb8adpublic as "..alt.."|r" end end
-      row.text:SetText(label); row.publish:SetText(pub and "Unpublish" or "Publish"); row:Show()
+      row.text:SetText(label); row:Show()
     else row.buildName=nil; row:Hide() end
   end
   if self.buildCountText then
@@ -764,14 +760,18 @@ function AB:CreateBuildBrowser()
   for i=1,BUILD_ROWS do
     local r=CreateFrame("Button",nil,f); r:SetWidth(506); r:SetHeight(32); r:SetPoint("TOPLEFT",f,"TOPLEFT",28,-78-(i-1)*36); r:SetPoint("RIGHT",f,"RIGHT",-28,0); r:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
     r.text=r:CreateFontString(nil,"OVERLAY","GameFontHighlight"); r.text:SetPoint("LEFT",r,"LEFT",8,0); r.text:SetWidth(240); r.text:SetJustifyH("LEFT")
-    r.publish=MakeButton(r,"Publish",82,22); r.publish:SetPoint("RIGHT",r,"RIGHT",-2,0); r.publish:SetScript("OnClick",function() local n=this:GetParent().buildName; if not n then return end; if AB:IsBuildPublished(n) then AB:UnpublishBuild(n) else AB:PublishBuild(n) end end)
-    r.delete=MakeButton(r,"Delete",66,22); r.delete:SetPoint("RIGHT",r.publish,"LEFT",-4,0); r.delete:SetScript("OnClick",function() local n=this:GetParent().buildName; if n then AB:PromptDeleteBuild(n) end end)
+    r.share=MakeButton(r,"Share Build",92,22); r.share:SetPoint("RIGHT",r,"RIGHT",-2,0)
+    r.share:SetScript("OnClick",function()
+      local build=AshenBuildsDB.builds[this:GetParent().buildName]
+      if build then AB:ShowCodeDialog("Share Build",AB:ExportBuild(build),false) end
+    end)
+    r.delete=MakeButton(r,"Delete",66,22); r.delete:SetPoint("RIGHT",r.share,"LEFT",-4,0); r.delete:SetScript("OnClick",function() local n=this:GetParent().buildName; if n then AB:PromptDeleteBuild(n) end end)
     r.rename=MakeButton(r,"Rename",70,22); r.rename:SetPoint("RIGHT",r.delete,"LEFT",-4,0); r.rename:SetScript("OnClick",function() local n=this:GetParent().buildName; if n then AB:PromptRenameBuild(n) end end)
     r:RegisterForClicks("LeftButtonUp","RightButtonUp")
     r:SetScript("OnClick",function() if not this.buildName then return end; if arg1=="RightButton" then AB:PromptDeleteBuild(this.buildName) else local n=this.buildName; AB:ConfirmDiscard(n,function() AB:LoadBuild(n); f:Hide() end) end end)
     self.buildRows[i]=r
   end
-  local help=f:CreateFontString(nil,"OVERLAY","GameFontDisableSmall"); help:SetPoint("BOTTOM",f,"BOTTOM",0,24); help:SetText("Click a build to load it  -  Saving a loaded build under a new name renames it"); help:SetTextColor(AB.THEME.muted[1],AB.THEME.muted[2],AB.THEME.muted[3])
+  local help=f:CreateFontString(nil,"OVERLAY","GameFontDisableSmall"); help:SetPoint("BOTTOM",f,"BOTTOM",0,24); help:SetText("Click a build to load it. Use Share Build to copy its code."); help:SetTextColor(AB.THEME.muted[1],AB.THEME.muted[2],AB.THEME.muted[3])
 end
 function AB:OpenBuildBrowser() self.buildOffset=0; self:RefreshBuildList(); self.buildBrowser:Show() end
 
@@ -1217,12 +1217,58 @@ function AB:RenderEnchantRows()
   self.enchantBrowser.more:SetText(text)
 end
 
-function AB:CreateCodeDialog() local f=CreateFrame("Frame","AshenBuildsCodeDialog",UIParent); f:SetWidth(650); f:SetHeight(190); f:SetPoint("CENTER",UIParent,"CENTER",0,0); MakeBackdrop(f); self:SetupWindow(f); f:Hide(); self.codeDialog=f; self:ApplyEmberBackground(f,10,0.5,0.5,0.45); self:AddEmberHeader(f,34); f.title=f:CreateFontString(nil,"OVERLAY","GameFontNormalLarge"); f.title:SetPoint("TOP",f,"TOP",0,-18); local edit=CreateFrame("EditBox","AshenBuildsCodeEdit",f,"InputBoxTemplate"); edit:SetWidth(580); edit:SetHeight(30); edit:SetPoint("TOP",f,"TOP",0,-62); edit:SetAutoFocus(false); edit:SetMaxLetters(4096); self.codeEdit=edit; local action=MakeButton(f,"Import",90,24); action:SetPoint("BOTTOM",f,"BOTTOM",-50,24); self.codeAction=action; local cancel=MakeButton(f,"Close",90,24); cancel:SetPoint("LEFT",action,"RIGHT",10,0); cancel:SetScript("OnClick",function() f:Hide() end) end
-function AB:ShowCodeDialog(title,text,isImport) self.codeDialog.title:SetText(title); self.codeEdit:SetText(text or ""); self.codeDialog:Show(); self.codeEdit:SetFocus(); self.codeEdit:HighlightText(); if isImport then self.codeAction:SetText("Import"); self.codeAction:Show(); self.codeAction:SetScript("OnClick",function() AB:ImportBuild(AB.codeEdit:GetText(),function() AB.codeDialog:Hide() end) end) else self.codeAction:Hide() end end
+function AB:CreateCodeDialog()
+  local f=CreateFrame("Frame","AshenBuildsCodeDialog",UIParent)
+  f:SetWidth(650); f:SetHeight(190); f:SetPoint("CENTER",UIParent,"CENTER",0,0)
+  MakeBackdrop(f); self:SetupWindow(f,{fit=true}); f:Hide()
+  self.codeDialog=f
+  self:ApplyEmberBackground(f,10,0.5,0.5,0.45); self:AddEmberHeader(f,34)
+  f.title=f:CreateFontString(nil,"OVERLAY","GameFontNormalLarge")
+  f.title:SetPoint("TOP",f,"TOP",0,-18)
+  f.hint=f:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+  f.hint:SetPoint("TOP",f,"TOP",0,-54)
+  local edit=CreateFrame("EditBox","AshenBuildsCodeEdit",f,"InputBoxTemplate")
+  edit:SetWidth(580); edit:SetHeight(30); edit:SetPoint("TOP",f,"TOP",0,-76)
+  edit:SetAutoFocus(false); edit:SetMaxLetters(4096)
+  self.codeEdit=edit
+  local action=MakeButton(f,"Import",90,24)
+  action:SetPoint("BOTTOM",f,"BOTTOM",-50,24)
+  self.codeAction=action
+  local close=MakeButton(f,"Close",90,24)
+  f.closeButton=close
+  close:SetScript("OnClick",function() f:Hide() end)
+  local function ImportCode()
+    AB:ImportBuild(edit:GetText(),function()
+      f:Hide()
+      AB:ShowTab("planner")
+    end)
+  end
+  action:SetScript("OnClick",ImportCode)
+  edit:SetScript("OnEnterPressed",function() if action:IsShown() then ImportCode() end end)
+  edit:SetScript("OnEscapePressed",function() f:Hide() end)
+end
+
+function AB:ShowCodeDialog(title,text,isImport)
+  local f=self.codeDialog
+  f.title:SetText(title)
+  f.hint:SetText(isImport and "Paste a build code with Ctrl+V, then click Import." or "Press Ctrl+C to copy the selected build code.")
+  f.closeButton:ClearAllPoints()
+  if isImport then
+    self.codeAction:Show()
+    f.closeButton:SetPoint("BOTTOM",f,"BOTTOM",50,24)
+  else
+    self.codeAction:Hide()
+    f.closeButton:SetPoint("BOTTOM",f,"BOTTOM",0,24)
+  end
+  self.codeEdit:SetText(text or "")
+  if f:IsShown() then self:FocusWindow(f) else f:Show() end
+  self.codeEdit:SetFocus()
+  self.codeEdit:HighlightText()
+end
 function AB:ToggleUI() if self.frame:IsShown() then self.frame:Hide() else self:RefreshUI(); self.frame:Show() end end
 
 ---------------------------------------------------------------------------
--- Tabs. Talents, Item Database, Saved Builds and Community are pages inside
+-- Tabs. Talents, Item Database, Enchant Database and Saved Builds are pages inside
 -- the main window instead of separate windows. Each is still built as a window
 -- by its Create* function; EmbedPage then moves it under the tab strip and
 -- hides its window decoration. One page is visible at a time, and the Planner
@@ -1320,20 +1366,17 @@ function AB:SelectTab(tab)
   if tab.frame:IsShown() and (not tab.isOpen or tab.isOpen()) then return end
   tab.open(); PlaySound("igCharacterInfoTab")
 end
-AB.ToggleTab=AB.SelectTab
-
 function AB:ShowTab(key)
   local i; for i=1,table.getn(self.tabs or {}) do if self.tabs[i].key==key then self:SelectTab(self.tabs[i]) end end
 end
 
--- Called once every window exists (after Talent and Community UIs have been built).
+-- Called once every window exists.
 function AB:SetupTabs()
   if self.tabs then return end
   self.tabs={}
   self.plannerButton=MakeButton(self.frame,"PLANNER",84,26)
-  -- Six tabs fit to the right of the level field without covering profile controls.
-  local order={self.plannerButton,self.talentOpenButton,self.itemDatabaseButton,self.enchantDatabaseButton,self.savedBuildsButton,self.communityButton}
-  local widths={80,78,112,126,102,90}
+  local order={self.plannerButton,self.talentOpenButton,self.itemDatabaseButton,self.enchantDatabaseButton,self.savedBuildsButton}
+  local widths={80,78,112,126,102}
   local i,prev
   for i=table.getn(order),1,-1 do
     local b=order[i]
@@ -1361,12 +1404,8 @@ function AB:SetupTabs()
   self:AddTab("enchants",self.enchantDatabaseButton,self.enchantDatabase,function() AB:OpenEnchantDatabase() end)
   self:EmbedPage(self.buildBrowser,40,true)
   self:AddTab("saved",self.savedBuildsButton,self.buildBrowser,function() AB:OpenBuildBrowser() end)
-  if self.communityButton and self.communityFrame then
-    self:EmbedPage(self.communityFrame,40,true)
-    self:AddTab("community",self.communityButton,self.communityFrame,function() AB:OpenCommunity() end)
-  end
   -- Pages let clicks through (see EmbedPage), so the main window forwards the
-  -- mouse wheel to whichever page is showing (item and community paging, etc.).
+  -- mouse wheel to whichever page is showing.
   self.frame:SetScript("OnMouseWheel",function()
     local i,t,fn
     for i=1,table.getn(AB.tabs) do t=AB.tabs[i]; fn=t.frame:IsShown() and t.frame:GetScript("OnMouseWheel"); if fn then fn() end end

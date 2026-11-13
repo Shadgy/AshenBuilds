@@ -147,7 +147,6 @@ function AB:CreateTalentUI()
   if self.talentFrame then return end
 
   local open = button(self.frame, "TALENTS", 90, 25)
-  open:SetPoint("RIGHT", self.communityButton, "LEFT", -8, 0)
   open:SetScript("OnClick", function()
     AB.talentFrame:Show()
     AB:RefreshTalentUI()

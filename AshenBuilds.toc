@@ -2,7 +2,7 @@
 ## Title: Ashen Builds
 ## Notes: All-class Turtle WoW build planner with embedded AshenDB
 ## Author: The Ashen Banner
-## Version: 1.0.9
+## Version: 1.0.10
 ## X-Maintainer: Shadgy
 ## X-Website: https://github.com/Shadgy/AshenBuilds
 ## X-Upstream: https://github.com/Tracer96/AshenBuilds
@@ -113,9 +113,6 @@ CombatMath.lua
 UI.lua
 EnchantUI.lua
 TalentUI.lua
-Profanity.lua
-Community.lua
-CommunityUI.lua
 Minimap.lua
 Sim\SimCore.lua
 Sim\SimItems.lua
