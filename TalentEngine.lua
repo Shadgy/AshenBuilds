@@ -7,6 +7,18 @@ AB.TREE_NAMES = {
   ROGUE={"Assassination","Combat","Subtlety"}, PRIEST={"Discipline","Holy","Shadow"}, SHAMAN={"Elemental","Enhancement","Restoration"},
   MAGE={"Arcane","Fire","Frost"}, WARLOCK={"Affliction","Demonology","Destruction"}, DRUID={"Balance","Feral","Restoration"}
 }
+-- Stable client background keys identify talent trees across locales.
+AB.TREE_ART = {
+  WARRIOR={"WarriorArms","WarriorFury","WarriorProtection"},
+  PALADIN={"PaladinHoly","PaladinProtection","PaladinCombat"},
+  HUNTER={"HunterBeastMastery","HunterMarksmanship","HunterSurvival"},
+  ROGUE={"RogueAssassination","RogueCombat","RogueSubtlety"},
+  PRIEST={"PriestDiscipline","PriestHoly","PriestShadow"},
+  SHAMAN={"ShamanElementalCombat","ShamanEnhancement","ShamanRestoration"},
+  MAGE={"MageArcane","MageFire","MageFrost"},
+  WARLOCK={"WarlockCurses","WarlockSummoning","WarlockDestruction"},
+  DRUID={"DruidBalance","DruidFeralCombat","DruidRestoration"},
+}
 
 local function ensureTalents(build)
   build.talents = build.talents or {}
@@ -24,6 +36,77 @@ end
 function AB:GetTalentData(className)
   local token=self.CLASS_TOKENS[className] or string.upper(className or "")
   return AshenBuildsTalentData and AshenBuildsTalentData[token], token
+end
+
+local function SameText(left,right)
+  return type(left)=="string" and type(right)=="string" and string.lower(left)==string.lower(right)
+end
+
+-- Octo uses a different icon from the catalog for this talent.
+local CHARACTER_TALENT_ICONS={
+  ["Experimental Ammunition"]="Interface\\Icons\\spell_hunter_exoticmunitions_poisoned",
+}
+
+local function FindCharacterTalent(tree,name,icon,row,column,maxRank,localized)
+  local found
+  for index,talent in ipairs(tree) do
+    if talent.row==row and talent.column==column and table.getn(talent.ranks)==maxRank
+      and (SameText(talent.name,name) or (localized and
+        (SameText(talent.icon,icon) or SameText(CHARACTER_TALENT_ICONS[talent.name],icon)))) then
+      if found then return nil end
+      found=index
+    end
+  end
+  return found
+end
+
+function AB:ReadCharacterTalents(build)
+  if not (GetNumTalentTabs and GetTalentTabInfo and GetNumTalents and GetTalentInfo) then
+    return nil,"the client talent API is unavailable"
+  end
+  local data,token=self:GetTalentData(build.class)
+  local tabs=GetNumTalentTabs()
+  if tabs==0 and self:GetTalentBudget(build)==0 then return {} end
+  if not data or tabs~=table.getn(data) then
+    return nil,"the character's talent trees are unavailable"
+  end
+  local locale=GetLocale and GetLocale()
+  local localized=locale and locale~="enUS" and locale~="enGB"
+  local points,seenTrees={},{}
+  for tab=1,tabs do
+    local name,_,spent,art=GetTalentTabInfo(tab)
+    local count=GetNumTalents(tab)
+    local tree
+    for i,label in ipairs(self.TREE_NAMES[token]) do
+      if SameText(label,name) or SameText(self.TREE_ART[token][i],art) then
+        if tree then return nil,"ambiguous talent tree" end
+        tree=i
+      end
+    end
+    if not tree or seenTrees[tree] or type(count)~="number" or count<1 or type(spent)~="number" then
+      return nil,"the talent tree "..tostring(name or tab).." could not be read"
+    end
+    seenTrees[tree]=true
+    name=name or self.TREE_NAMES[token][tree]
+    local total=0
+    for index=1,count do
+      local talent,icon,row,column,rank,maxRank=GetTalentInfo(tab,index)
+      if type(rank)~="number" or rank<0 or rank~=math.floor(rank) then
+        return nil,"a talent rank could not be read in "..name
+      end
+      if rank>0 then
+        local match=FindCharacterTalent(data[tree],talent,icon,row,column,maxRank,localized)
+        local key=match and self:GetTalentKey(tree,match)
+        if not key or points[key] or rank>maxRank then
+          return nil,"the talent catalog does not match "..tostring(talent or name)
+        end
+        points[key]=rank
+        total=total+rank
+      end
+    end
+    if total~=spent then return nil,"the talent point total changed in "..name end
+  end
+  return points
 end
 
 -- The selected form is independent of the talent preset's display name.

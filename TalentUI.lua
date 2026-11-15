@@ -11,18 +11,6 @@ local AB = AshenBuilds
 local ICON, COL_STEP, ROW_STEP, LEFT, TOP = 44, 70, 70, 27, -58
 local PANEL_W, PANEL_H = 310, 556
 
--- The game's talent background art for every class, per tree.
-local TREE_ART = {
-  WARRIOR = {"WarriorArms", "WarriorFury", "WarriorProtection"},
-  PALADIN = {"PaladinHoly", "PaladinProtection", "PaladinCombat"},
-  HUNTER = {"HunterBeastMastery", "HunterMarksmanship", "HunterSurvival"},
-  ROGUE = {"RogueAssassination", "RogueCombat", "RogueSubtlety"},
-  PRIEST = {"PriestDiscipline", "PriestHoly", "PriestShadow"},
-  SHAMAN = {"ShamanElementalCombat", "ShamanEnhancement", "ShamanRestoration"},
-  MAGE = {"MageArcane", "MageFire", "MageFrost"},
-  WARLOCK = {"WarlockCurses", "WarlockSummoning", "WarlockDestruction"},
-  DRUID = {"DruidBalance", "DruidFeralCombat", "DruidRestoration"},
-}
 -- The art comes in four pieces that together make a 320x384 picture.
 local ART_PIECES = {{"TopLeft", 0, 0, 256, 256}, {"TopRight", 256, 0, 64, 256}, {"BottomLeft", 0, 256, 256, 128}, {"BottomRight", 256, 256, 64, 128}}
 -- The bottom pieces are 128 tall but only the top ~76 rows are painted, so the
@@ -309,7 +297,7 @@ function AB:TalentTreeArt(token, tree)
     local _, _, _, background = GetTalentTabInfo(tree)
     if background and background ~= "" then return background end
   end
-  return TREE_ART[token] and TREE_ART[token][tree]
+  return self.TREE_ART[token] and self.TREE_ART[token][tree]
 end
 
 function AB:RefreshTalentUI()

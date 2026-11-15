@@ -147,12 +147,14 @@ local function importedEnchant(slot,native,item)
     if item and A:IsEnchantAllowed(slot,id,item) then return id end
   end
 end
-function A:ImportEquipped()
+local function readEquipped(self,requireComplete)
   local items,enchants,unmapped={},{},{}
   local found,missing,unknownEnchant=0,0,0
   local i,slot,link,id,native,_,__,item,enchant
   for i=1,table.getn(self.SLOTS) do
-    slot=self.SLOTS[i]; link=GetInventoryItemLink("player",self.INVENTORY_SLOTS[slot])
+    slot=self.SLOTS[i]
+    local inventorySlot=self.INVENTORY_SLOTS[slot]
+    link=GetInventoryItemLink("player",inventorySlot)
     if link then
       _,__,id,native=string.find(link,"item:(%d+):(%d*)")
       if not id then _,__,id=string.find(link,"item:(%d+)") end
@@ -164,9 +166,18 @@ function A:ImportEquipped()
           enchant=importedEnchant(slot,native,item)
           if enchant then enchants[slot]=enchant else unmapped[slot]=native; unknownEnchant=unknownEnchant+1 end
         end
+      elseif requireComplete then
+        return nil,"an equipped item's link could not be read"
       else missing=missing+1 end
+    elseif requireComplete and GetInventoryItemTexture and GetInventoryItemTexture("player",inventorySlot) then
+      return nil,"equipped item links are still loading"
     end
   end
+  return items,enchants,unmapped,found,missing,unknownEnchant
+end
+
+function A:ImportEquipped()
+  local items,enchants,unmapped,found,missing,unknownEnchant=readEquipped(self)
   local player=self.NewBuildData("Imported")
   local b=self.current
   local candidate=self:DeepCopy(b)
@@ -200,4 +211,91 @@ function A:ImportEquipped()
     apply()
   end
   return found,missing,unknownEnchant
+end
+
+local function readCharacterBuild(self)
+  local name=UnitName("player")
+  local _,token=UnitClass("player")
+  local level=UnitLevel("player")
+  if not name or not token or type(level)~="number" or level<1 then
+    return nil,"your character is not ready"
+  end
+  local player=self.NewBuildData(name.." build")
+  if self.CLASS_TOKENS[player.class]~=token then return nil,"unsupported character class" end
+  local points,why=self:ReadCharacterTalents(player)
+  if not points then return nil,why end
+  player.spec="Custom"
+  player.talents={points=points}
+  local valid
+  valid,why=self:ValidateTalents(player)
+  if not valid then return nil,why end
+  return player
+end
+
+function A:ImportCharacter()
+  local draft=self.current
+  local signature=self:GetBuildPayloadSignature(draft)
+  local name,savedName=draft.name,draft.savedName
+  local player,why=readCharacterBuild(self)
+  if not player then
+    self.Print("Could not import character because "..why..". The current build was kept.")
+    return
+  end
+
+  local function canApply()
+    if self.current==draft and draft.name==name and draft.savedName==savedName
+      and self:GetBuildPayloadSignature(draft)==signature then return true end
+    self.Print("The current plan has changed. Open Import Character again.")
+    return false
+  end
+
+  local function apply(useCurrent)
+    if not canApply() then return end
+    local imported,reason=readCharacterBuild(self)
+    if not imported then
+      self.Print("Could not import character because "..reason..". The current build was kept.")
+      return
+    end
+    local items,enchants,unmapped,found,missing,unknownEnchant=readEquipped(self,true)
+    if not items then
+      self.Print("Could not import character because "..enchants..". The current build was kept.")
+      return
+    end
+    local b=imported
+    if useCurrent then
+      b=draft
+      if b.class~=imported.class then
+        b.form=nil; b.defense=nil; b.weaponSkillQuests=nil; b.base=nil
+      elseif b.class=="Druid" then
+        b.form=self:GetBuildForm(b)
+      end
+      b.class=imported.class; b.race=imported.race; b.level=imported.level
+      b.spec=imported.spec; b.talents=imported.talents
+    else
+      local baseName,suffix=b.name,2
+      while AshenBuildsDB.builds[b.name] do
+        b.name=baseName.." ("..suffix..")"
+        suffix=suffix+1
+      end
+    end
+    b.items=items; b.enchants=enchants; b.unmappedEnchants=unmapped
+    b.manual=true; b.updated=time()
+    self.current=b
+    self:RefreshUI()
+    if not self.frame:IsShown() then self.frame:Show() end
+    self:ShowTab("planner")
+    self.Print("Imported "..found.." known equipped items and "..self:GetTalentPointsSpent(b).." talent points. Click Save Changes to keep this build.")
+    if missing>0 or unknownEnchant>0 then
+      self.Print(missing.." equipped items are missing from the database. "..unknownEnchant.." unrecognized enchant effects were kept as warnings.")
+    end
+  end
+
+  self:ShowPrompt({
+    title="IMPORT CHARACTER",
+    text="Overwrite replaces the draft's gear, talents, class, race and level.\nNew Build starts a separate draft. Save Changes updates the library.",
+    accept="Overwrite", onAccept=function() apply(true) end,
+    alternate="New Build", onAlternate=function()
+      if canApply() then self:ConfirmDiscard("a new character build",function() apply(false) end) end
+    end,
+  })
 end

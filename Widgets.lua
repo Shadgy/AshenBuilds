@@ -156,7 +156,7 @@ end
 
 ---------------------------------------------------------------------------
 -- Prompt / confirm dialog: AB:ShowPrompt{title=, text=, edit=bool, default=,
--- accept="OK", onAccept=function(text) end}
+-- accept="OK", onAccept=function(text) end, alternate=, onAlternate=}
 ---------------------------------------------------------------------------
 function AB:CreatePromptDialog()
   local f = CreateFrame("Frame", "AshenBuildsPromptDialog", UIParent); f:SetWidth(420); f:SetHeight(160); f:SetPoint("CENTER", UIParent, "CENTER", 0, 80)
@@ -166,11 +166,13 @@ function AB:CreatePromptDialog()
   f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge"); f.title:SetPoint("TOP", f, "TOP", 0, -18)
   f.text = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight"); f.text:SetPoint("TOP", f, "TOP", 0, -56); f.text:SetWidth(370)
   local edit = CreateFrame("EditBox", "AshenBuildsPromptEdit", f, "InputBoxTemplate"); edit:SetWidth(340); edit:SetHeight(24); edit:SetPoint("TOP", f.text, "BOTTOM", 0, -8); edit:SetAutoFocus(false); edit:SetMaxLetters(60); f.edit = edit
-  local accept = CreateFrame("Button", nil, f, "UIPanelButtonTemplate"); accept:SetWidth(100); accept:SetHeight(24); accept:SetPoint("BOTTOMRIGHT", f, "BOTTOM", -5, 18); self:SkinButton(accept, "ember"); f.accept = accept
-  local cancel = CreateFrame("Button", nil, f, "UIPanelButtonTemplate"); cancel:SetWidth(100); cancel:SetHeight(24); cancel:SetPoint("BOTTOMLEFT", f, "BOTTOM", 5, 18); cancel:SetText("Cancel"); self:SkinButton(cancel, "ember")
+  local accept = CreateFrame("Button", nil, f, "UIPanelButtonTemplate"); accept:SetWidth(100); accept:SetHeight(24); self:SkinButton(accept, "ember"); f.accept = accept
+  local alternate = CreateFrame("Button", nil, f, "UIPanelButtonTemplate"); alternate:SetWidth(100); alternate:SetHeight(24); alternate:SetPoint("BOTTOM", f, "BOTTOM", 0, 18); self:SkinButton(alternate, "ember"); f.alternate = alternate
+  local cancel = CreateFrame("Button", nil, f, "UIPanelButtonTemplate"); cancel:SetWidth(100); cancel:SetHeight(24); cancel:SetText("Cancel"); self:SkinButton(cancel, "ember"); f.cancel = cancel
   cancel:SetScript("OnClick", function() f:Hide() end)
   local function Accept() local cb = f.onAccept; local text = f.edit:GetText(); f:Hide(); if cb then cb(text) end end
   accept:SetScript("OnClick", Accept)
+  alternate:SetScript("OnClick", function() local cb=f.onAlternate; f:Hide(); if cb then cb() end end)
   edit:SetScript("OnEnterPressed", Accept)
   edit:SetScript("OnEscapePressed", function() f:Hide() end)
 end
@@ -179,6 +181,17 @@ function AB:ShowPrompt(o)
   if not self.promptDialog then self:CreatePromptDialog() end
   local f = self.promptDialog
   f.title:SetText(o.title or ""); f.text:SetText(o.text or ""); f.accept:SetText(o.accept or "OK"); f.onAccept = o.onAccept
+  f.onAlternate=o.onAlternate
+  f.accept:ClearAllPoints(); f.cancel:ClearAllPoints()
+  if o.alternate then
+    f.alternate:SetText(o.alternate); f.alternate:Show()
+    f.accept:SetPoint("RIGHT",f.alternate,"LEFT",-10,0)
+    f.cancel:SetPoint("LEFT",f.alternate,"RIGHT",10,0)
+  else
+    f.alternate:Hide()
+    f.accept:SetPoint("BOTTOMRIGHT",f,"BOTTOM",-5,18)
+    f.cancel:SetPoint("BOTTOMLEFT",f,"BOTTOM",5,18)
+  end
   f:Show()
   if o.edit then f.edit:Show(); f.edit:SetText(o.default or ""); f.edit:SetFocus(); f.edit:HighlightText() else f.edit:Hide() end
 end

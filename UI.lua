@@ -180,7 +180,9 @@ function AB:CreateUI()
   local share=Quiet("Share Build",92); share:SetPoint("LEFT",clear,"RIGHT",4,0); share:SetScript("OnClick",function() AB:ShowCodeDialog("Share Build",AB:ExportBuild(),false) end)
   local import=Quiet("Import Build",92); import:SetPoint("LEFT",share,"RIGHT",4,0); import:SetScript("OnClick",function() AB:ShowCodeDialog("Import Build","",true) end)
   self.shareButton=share; self.importButton=import
-  self.saveStateText=f:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall"); self.saveStateText:SetPoint("LEFT",import,"RIGHT",12,0)
+  local character=Quiet("Import Character",116); character:SetPoint("LEFT",import,"RIGHT",4,0)
+  character:SetScript("OnClick",function() AB:ImportCharacter() end); self.importCharacterButton=character
+  self.saveStateText=f:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall"); self.saveStateText:SetPoint("LEFT",character,"RIGHT",12,0)
   nameBox:SetScript("OnTextChanged",function()
     if AB.current and AB.current.name~=this:GetText() then
       AB.current.name=this:GetText()

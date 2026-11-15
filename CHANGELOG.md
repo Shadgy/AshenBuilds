@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.11
+
+- Import Character reads worn equipment, permanent enchants and learned talents into the planner. Choose Overwrite, New Build or Cancel before applying the import.
+- Imported changes remain a draft until Save Changes. If worn items or learned talents cannot be read reliably, the current plan is kept.
+
 ## 1.0.10
 
 - Remove Community publishing, voting and automatic synchronization over game chat and addon messages.

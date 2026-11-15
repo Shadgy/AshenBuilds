@@ -19,7 +19,12 @@ See [CHANGELOG.md](CHANGELOG.md) for fork changes,
 [maintenance guide](https://github.com/Shadgy/AshenBuilds/blob/main/docs/MAINTENANCE.md)
 for testing and future updates.
 
-### What is new in 1.0.10
+### What is new in 1.0.11
+
+**Import Character** reads your equipped gear and learned talents. Choose
+whether to update the current plan or open a new draft.
+
+### Included from 1.0.10
 
 **Share Build** and **Import Build** use copy and paste. Automatic Community
 sharing and game chat synchronization have been removed.
@@ -226,6 +231,14 @@ Type `/ab` in game, or click the ember icon on the minimap.
 Codes carry class, race, level, specialization, gear, enchants and talents.
 Earlier AB1, AB2 and AB3 codes can still be imported.
 
+### Import your character
+
+Click **Import Character** to load your worn gear, permanent enchants and learned
+talents. Choose **Overwrite** to update the current draft, **New Build** to start a
+separate draft, or **Cancel** to keep the planner as it is. The library changes when
+you click **Save Changes**. If the current draft has unsaved edits, save those first
+to keep them before starting a new build.
+
 ## Controls
 
 | Action | How |
@@ -248,6 +261,7 @@ an item (or loading a saved build) takes you back to the Planner.
 | Command | Does |
 |---|---|
 | `/ab` | Open or close the planner |
+| `/ab importcharacter` | Import worn equipment and learned talents |
 | `/ab importgear` | Load the gear you are wearing into the planner |
 | `/ab minimap` | Hide or show the minimap button |
 | `/ab reset` | Start a fresh build |

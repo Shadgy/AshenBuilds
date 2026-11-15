@@ -1,5 +1,5 @@
 AshenBuilds = AshenBuilds or {}
-AshenBuilds.VERSION = "1.0.10"
+AshenBuilds.VERSION = "1.0.11"
 
 AshenBuilds.SLOTS = {
   "HEAD","NECK","SHOULDER","BACK","CHEST","SHIRT","TABARD","WRIST","HANDS","WAIST","LEGS","FEET",
@@ -431,21 +431,6 @@ function AshenBuilds:SetLevel(value)
     if not valid then AB_Print("Refund talents before lowering the build level: "..tostring(reason)); return false end
   end
   self.current.level=value; self.current.manual=true; self.current.updated=time(); self:RefreshUI()
-end
-
-function AshenBuilds:ImportEquipped()
-  local found, missing = 0, 0
-  local i, slot, inv, link, id
-  for i=1,table.getn(self.SLOTS) do
-    slot=self.SLOTS[i]; inv=self.INVENTORY_SLOTS[slot]; link=GetInventoryItemLink("player",inv)
-    if link then
-      local _,_,raw=string.find(link,"item:(%d+)"); id=tonumber(raw)
-      if id and self:GetItem(id) then self.current.items[slot]=id; found=found+1 else missing=missing+1 end
-    else self.current.items[slot]=nil end
-  end
-  self.current.class=AB_PlayerClass(); self.current.race=AB_PlayerRace(); self.current.level=AB_PlayerLevel()
-  self.current.updated=time(); self:RefreshUI()
-  AB_Print("Imported "..found.." database items. "..missing.." equipped items are not in the current data pack.")
 end
 
 local function AB_CleanName(name)
@@ -987,6 +972,7 @@ eventFrame:SetScript("OnEvent",function()
       local cmd=split and string.sub(msg,1,split-1) or msg
       local arg=split and string.sub(msg,split+1) or ""
       if cmd=="reset" then AshenBuilds:StartNewBuild()
+      elseif cmd=="importcharacter" then AshenBuilds:ImportCharacter()
       elseif cmd=="importgear" then AshenBuilds:ImportEquipped()
       elseif cmd=="minimap" then AshenBuilds:ToggleMinimapButton()
       elseif cmd=="model" then
