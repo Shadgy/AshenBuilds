@@ -38,6 +38,40 @@ class ContentSourceGraphTests(unittest.TestCase):
         self.assertEqual(result["l"],4)
         self.assertTrue(result["u"])
 
+    def test_on_use_tool_resolves_a_craft_chain_without_bypassing_material_phases(self):
+        graph=self.crafting_graph(tool=route(2,zones=(469,)),material=route(4,zones=(531,)))
+        result=graph.spell(20)
+        self.assertEqual(result["p"],4)
+        self.assertEqual(result["l"],4)
+        self.assertEqual(graph.spell(10)["z"],{469})
+        self.assertEqual(result["z"],set())
+
+    def test_on_use_alone_does_not_promote_an_aura_or_teaching_spell(self):
+        graph=self.crafting_graph(tool=route(0),material=route(0))
+        graph.creation_spells=set()
+        self.assertIsNone(graph.spell(10)["p"])
+
+    def test_unknown_reagent_leaves_craft_phase_unresolved(self):
+        graph=self.crafting_graph(tool=route(2),material=source.Sources.unknown())
+        result=graph.spell(20)
+        self.assertIsNone(result["p"])
+        self.assertEqual(result["l"],2)
+
+    @staticmethod
+    def crafting_graph(tool,material):
+        graph=source.Sources.__new__(source.Sources)
+        graph.creation_spells={10,20}
+        graph.application_items={10:{1}}
+        graph.spell_sources={20:[("profession",0)]}
+        graph.reagents={10:[2],20:[3]}
+        graph.cache={}; graph.busy=set()
+        def item(item_id):
+            if item_id==3:
+                return graph.spell(10)
+            return {1:tool,2:material}[item_id]
+        graph.item=item
+        return graph
+
     def test_container_cycle_stays_unknown_without_recursing_forever(self):
         graph=source.Sources.__new__(source.Sources)
         graph.items={1:{"required_honor_rank":0},2:{"required_honor_rank":0}}

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.13
+
+- Resolve crafting dependencies through items that trigger an actual Create Item spell, including Salt Shaker. Regenerate the acquisition metadata from the same Tortoise and AtlasLoot snapshots.
+- Restore 52 pieces of equipment to phase 2 suggestions, including Corehound Belt, Molten Belt and Chromatic Gauntlets. Dreamhide Mantle receives its phase 3 requirement.
+
 ## 1.0.12
 
 - Add the remaining 180 Octo equipment records from the catalog audit using confirmed item tooltips. All 180 require Include unverified entries, including in Full catalog.

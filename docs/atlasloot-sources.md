@@ -9,8 +9,9 @@ changing item IDs, build codes or item statistics.
 
 `Data/AtlasLootSources.lua` records the extracted evidence. It contains 7,632 item IDs
 across all relevant loot/crafting data, including consumables, formulas and materials.
-**5,999** of those IDs match the embedded planner catalog. Of those, **5,560** have
-at least one mapped phase and **439** have reference evidence with unresolved phase.
+**5,999** of those IDs match the embedded planner catalog. As of 1.0.13,
+**5,615** have at least one mapped phase and **384** have reference evidence
+with unresolved phase.
 The export maps **239 of 263** stable addon enchant IDs; the remaining 24 are listed
 below. Seven of the 239 evidenced enchants still have an unresolved phase. These
 evidence counts are not counts of items available in phase 2.
@@ -23,8 +24,9 @@ python tools/build_atlasloot_sources.py PATH_TO_ATLASLOOT --database tools/work/
 
 The output's `meta.files` stores SHA-256 hashes for AtlasLoot's TOC and loaded
 Database files, plus the addon enchant/source catalogs used at export time.
-The later quest acceptance-level table changes the source catalog's bytes
-without changing the recorded phase summaries. The optional
+For the 1.0.13 regeneration, the ten AtlasLoot files were recovered from
+[commit 3c229608](https://octowow.st/git/shaga/AtlasLoot/src/commit/3c229608cad0a8b7f46e2746d6a10d938b6c9003)
+and matched the original hashes. The optional
 SQLite join snapshot is recorded by SHA-256
 `3ab59b9aab18adc8bcbba2363635e5eef666d8423d5e5ee376913fd6b24743b4`.
 It supplies exact spell-to-product, use-item and recipe joins; its presence alone

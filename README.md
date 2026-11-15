@@ -19,7 +19,13 @@ See [CHANGELOG.md](CHANGELOG.md) for fork changes,
 [maintenance guide](https://github.com/Shadgy/AshenBuilds/blob/main/docs/MAINTENANCE.md)
 for testing and future updates.
 
-### What is new in 1.0.12
+### What is new in 1.0.13
+
+Crafted item availability includes tools such as Salt Shaker when resolving
+the materials. Corehound Belt and other affected crafts return to the item
+picker at the correct phase. See the [crafting audit](docs/content-sources.md#crafts-triggered-by-items-in-1013).
+
+### Included from 1.0.12
 
 The item database includes 180 more Octo item definitions with confirmed stats.
 Turn on **Include unverified entries** in the content filters to see them in

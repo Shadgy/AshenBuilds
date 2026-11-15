@@ -67,6 +67,16 @@ class Sources:
             for npc in templates[r['entry']]: self.routes[r['item']].append(('vendor',npc))
         self.spell_sources=defaultdict(list); self.reagents=defaultdict(list)
         for r in c.execute('select spell,item from spell_creates'): self.routes[r['item']].append(('craft',r['spell']))
+        # spell_creates includes some teaching and aura spells. Only CREATE_ITEM
+        # (effect 24) can add a new activation route through an on-use item.
+        self.creation_spells={r['entry'] for r in c.execute("""
+            select distinct s.entry from spell_creates c
+            join spells s on s.entry=c.spell
+            where s.hidden=0 and exists (
+                select 1 from json_each(s.effects) effect
+                where json_extract(effect.value, '$.effect')=24
+            )
+        """)}
         for r in c.execute('select spell,item from spell_taught_item'): self.spell_sources[r['spell']].append(('recipe',r['item']))
         for r in c.execute('select spell,npc from spell_trainer'): self.spell_sources[r['spell']].append(('trainer',r['npc']))
         for r in c.execute('select spell,trainer,recipe_item,auto from craft_source'):
@@ -144,11 +154,13 @@ class Sources:
             elif kind=='trainer': routes.append(self.npc(owner))
             elif kind=='profession': routes.append({'p':0,'l':0,'u':False,'z':set(),'r':1})
             else: routes.append(self.unknown())
-        learning=self.any(routes)
-        # Required materials can impose a later phase too. Keep learning locations for
-        # raid filters rather than misclassifying an enchant as a material's raid drop.
-        result=self.required([learning]+[self.item(i) for i in self.reagents.get(sid,[])])
-        result['z']=learning['z']
+        if sid in self.creation_spells:
+            routes.extend(self.item(item) for item in sorted(self.application_items.get(sid,())))
+        access=self.any(routes)
+        # The phase is constrained by the recipe or tool and every reagent.
+        # Only the recipe/tool locations describe the acquisition route itself.
+        result=self.required([access]+[self.item(i) for i in self.reagents.get(sid,[])])
+        result['z']=access['z']
         self.busy.remove(key); self.cache[key]=result; return result
 
     def item(self,iid):

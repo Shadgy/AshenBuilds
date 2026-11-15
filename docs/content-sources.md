@@ -75,3 +75,41 @@ if some other required material is unresolved.
 The character planner retains existing items and enchants regardless of these
 filters. Availability is evaluated before the enchant dominance pass, so a stronger
 future enchant cannot hide a currently usable lower option.
+
+## Crafts triggered by items in 1.0.13
+
+The generator now traces item-use activations for visible spells with a Create
+Item effect. The tool is an alternative to learning the spell. Access to that
+tool and all the required reagents still determines the phase. This production
+path requires an on-use trigger linked to the creation spell.
+
+Corehound Belt depends on Cured Rugged Hide, which requires Refined Deeprock
+Salt. The [official Salt Shaker spell](https://octowow.st/db/?spell=19566)
+confirms that using the tool creates the salt. This route is available in base
+content under the existing Octo map rules. The recipe remains tied to
+[Lokhtos Darkbargainer](https://octowow.st/db/?item=19332).
+
+The same SQLite snapshot and exact AtlasLoot 3.4.6 files were used for the
+comparison. Across the item catalog, 55 AtlasLoot-backed entries change from
+unresolved to a known phase. Of these, 52 pieces of gear are eligible in phase
+2 with Unverified off. Two bags become phase 0 catalog entries outside the
+gear picker and Dreamhide Mantle becomes phase 3. The offline comparison also
+checked every existing future-phase gate and enchant across all eight phases.
+
+| Phase | Corrected equipment |
+| --- | --- |
+| 0 | Blue Dragonscale Breastplate (15048), Shoulders (15049), Leggings (20295) and Boots (65015) |
+| 0 | Black Dragonscale Breastplate (15050), Shoulders (15051) and Leggings (15052), Green Dragonscale Gauntlets (20296) |
+| 0 | Stormshroud Armor (15056) and Gloves (21278), Living Breastplate (15059) and Leggings (15060), Ironfeather Breastplate (15066), Frostsaber Tunic (15068) |
+| 0 | Heavy Scorpid Helm (15080) and Shoulders (15081), Wicked Leather Armor (15085) and Pants (15087), Runic Leather Armor (15090) and Shoulders (15096) |
+| 0 | Might of the Timbermaw (19044), Timbermaw Brawlers (19049), Dawn Treaders (19052), Golden Mantle of the Dawn (19058) |
+| 0 | Lava Belt (19149), Chromatic Gauntlets (19157), Corehound Belt (19162), Molten Belt (19163), Chromatic Leggings (65036), Molten Leggings (65037), Corehound Gloves (65038) |
+| 0 | Dreamscale Breastplate (20380), Sandstalker Gauntlets (20477) and Breastplate (20478), Spitfire Breastplate (20479) and Gauntlets (20480), Bramblewood Boots (22760) and Belt (22761) |
+| 0 | Harness of the High Thane (55043), Inscribed Runic Bracers (61188), Stormscale Leggings (65006), Verdant Dreamer's Breastplate (65021), Primalist's Vest (81066) |
+| 0 | Dreamhide Bracers (61357), Leggings (61358) and Belt (61359) |
+| 1 | Primal Batskin Jerkin (19685), Gloves (19686) and Bracers (19687), Blood Tiger Breastplate (19688) and Shoulders (19689), Bramblewood Helm (22759) |
+| 3 | Dreamhide Mantle (61356) |
+
+The phase 0 bag entries are Skinner's Carryall (33378) and Cooling Rations Bag
+(33379). The phase results come from the recorded sources and the Octo map
+profile used in the offline comparison.

@@ -12,6 +12,15 @@ for _,id in ipairs({55285,55098,55278,55283}) do
 end
 local idx=A.ItemIndex;idx:Reset();idx:Finish()
 local function Has(list,id) for _,p in ipairs(list) do if idx.id[p]==id then return true end end return false end
+local craftBelts=idx:Query({slot="WAIST",source=16,availability=s,maxReq=60})
+check("Corehound and Molten belts return to the normal phase 2 crafting picker",Has(craftBelts,19162) and Has(craftBelts,19163))
+local batskin=A:GetItemAvailability(19685)
+check("resolved Batskin crafting retains its Zul'Gurub phase",batskin.status=="available" and batskin.phase==1)
+local mantle=A:GetItemAvailability(61356)
+s.includeUnknown=true
+check("Dreamhide Mantle stays gated in phase 2 after its phase is resolved",
+  mantle.status=="future" and mantle.phase==3 and not A:MatchesAvailability(mantle,s))
+s.includeUnknown=false
 local raid=idx:Query({slot="HANDS",source=2,availability=s})
 check("actual raid picker excludes Tower in phase2",not Has(raid,55285) and not Has(raid,55098) and not Has(raid,55278) and not Has(raid,55283))
 check("actual raid picker retains BWL gear",A:GetItemAvailability(19349).status=="available" and A:GetItemAvailability(19349).verified)
