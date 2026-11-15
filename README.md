@@ -19,7 +19,13 @@ See [CHANGELOG.md](CHANGELOG.md) for fork changes,
 [maintenance guide](https://github.com/Shadgy/AshenBuilds/blob/main/docs/MAINTENANCE.md)
 for testing and future updates.
 
-### What is new in 1.0.11
+### What is new in 1.0.12
+
+The item database includes 180 more Octo item definitions with confirmed stats.
+Turn on **Include unverified entries** in the content filters to see them in
+either profile. Their acquisition sources are still unverified.
+
+### Included from 1.0.11
 
 **Import Character** reads your equipped gear and learned talents. Choose
 whether to update the current plan or open a new draft.

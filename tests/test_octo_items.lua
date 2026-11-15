@@ -37,8 +37,10 @@ local katana=A:GetItem(93223)
 check("the Octo-only crafted katana has confirmed native damage, speed and source",
   katana and katana.minDamage==12.8 and katana.maxDamage==19 and katana.speed==1.5
     and A:GetItemSources(93223)[1][2]==65210)
+local katanaCount=0
+for _,id in ipairs(AshenDB.ItemOrder) do if id==93223 then katanaCount=katanaCount+1 end end
 check("the new katana is indexed once and searchable by crafting source",
-  Find(93223,"blacksmithing","MAINHAND",18,16) and AshenDB:GetItemCount()==16077)
+  Find(93223,"blacksmithing","MAINHAND",18,16) and katanaCount==1)
 check("the newly added vendor sword respects the required level",
   Find(90053,"simple katana","MAINHAND",10,256) and not Find(90053,"simple katana","MAINHAND",9,256))
 check("unverified PvP entries are hidden by default",

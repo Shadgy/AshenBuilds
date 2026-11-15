@@ -1,6 +1,6 @@
-# Octo item audit for 1.0.11
+# Octo item audit
 
-Checked 2026-11-15. The bundled AshenDB item snapshot is Tortoise-WoW
+The 1.0.11 audit was checked on 2026-11-15. The bundled AshenDB item snapshot is Tortoise-WoW
 `ec14bfe00852`. The acquisition metadata uses SQLite snapshot `3ab59b9aab18`
 and the bundled AtlasLoot 3.4.6 evidence. The installed Octo AtlasLoot 4.2.0
 comparison used revision `841b232c56d92bc45c600b1e57c508d47066b28a`.
@@ -53,3 +53,34 @@ The crafting audit also found 28 candidates whose phase resolves only with a
 fresh traversal of Tortoise's cyclic recipe dependencies. Octo evidence was
 checked for the two Shen'dralar craft products above. The other candidates
 remain subject to the existing phase checks.
+
+## 1.0.12 follow-up
+
+All 180 remaining IDs from the comparison were confirmed against their
+individual official Octo item pages and added in `Data/OctoUnverifiedItems.lua`.
+They include 149 armor templates found in the older reference database, 30
+Bloody Gladiator variants and Field Medic's Band. The official tooltips take
+precedence where the stats differ from the older snapshot. Compare
+[Veteran's Plate Shoulderguards](https://octowow.st/db/?item=33417),
+[Bloody Gladiator's Chain Helm](https://octowow.st/db/?item=83585) and
+[Field Medic's Band](https://octowow.st/db/?item=33218).
+
+None of the captured official pages recorded a populated acquisition relation.
+The older snapshot's connection from Skirmisher's Cache to Field Medic's Band
+does not establish how the cache is obtained on Octo. All 180 items require the
+**Include unverified entries** setting in both the Octo and Full catalog profiles.
+The entries retain their official level, class and race restrictions.
+Conditional effects such as resistance against players, reduced critical-hit
+damage taken and silence resistance are shown in tooltips. Set bonuses without
+Octo evidence are omitted.
+
+The generator reads saved official item pages and verifies their identity,
+quality, armor, slot and levels against the captured item-list rows.
+Snapshot hashes record the exact inputs. The item-list SHA-256 is
+`dacfffddb939c19c26e466af2edf11c2dbd2fb6fc756fa8a5f3ad7a58d2b03e3`.
+The SHA-256 of the ID-sorted list of page hashes is
+`5f797ad23f17dd674765226c482ac44376206ee3e96f4244bfbfee9c484fd67a`.
+
+```text
+python tools/build_octo_unverified_items.py dist/octo-unverified-1.0.12/items.json dist/octo-unverified-1.0.12/pages --output Data/OctoUnverifiedItems.lua --report dist/octo-unverified-1.0.12/parser-report.json
+```

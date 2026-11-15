@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.12
+
+- Add the remaining 180 Octo equipment records from the catalog audit using confirmed item tooltips. All 180 require Include unverified entries, including in Full catalog.
+- Preserve class restrictions and unconditional stats. Keep conditional PvP effects in tooltips.
+
 ## 1.0.11
 
 - Restore two Shen'dralar craft products, nine Dire Maul vendor items and four Stormwind Vault quest rewards. Use the minimum quest acceptance level when filtering usable rewards.

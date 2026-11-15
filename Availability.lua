@@ -237,8 +237,12 @@ function AB:GetItemAvailability(id,settings)
   local full=AshenBuildsContentSources and AshenBuildsContentSources.items[id]
   local atlas=AshenBuildsAtlasLootSources and AshenBuildsAtlasLootSources.items[id]
   local result=AtlasAvailability(atlas,full,settings,false)
-  if result then return result end
-  return Unverified(self:GetCatalogItemAvailability(id,settings),full)
+  result=result or Unverified(self:GetCatalogItemAvailability(id,settings),full)
+  if result.status=="unknown" and AshenDB.OctoUnverifiedItems and AshenDB.OctoUnverifiedItems[id] then
+    result.requiresUnverified=true
+    result.reason="Item stats confirmed in the Octo database. Acquisition is unverified."
+  end
+  return result
 end
 
 function AB:GetEnchantAvailability(id,settings)
@@ -254,6 +258,7 @@ end
 
 function AB:MatchesAvailability(result,settings,showHidden)
   if type(settings)~="table" then settings=self:GetAvailabilitySettings() end
+  if result.requiresUnverified and settings.includeUnknown~=true then return false end
   if result.status=="unobtainable" then return showHidden and true or false end
   if settings.profile=="Catalog" then return true end
   if (result.minPhase or 0)>CurrentPhase(settings) and not settings.showFuture then return false end

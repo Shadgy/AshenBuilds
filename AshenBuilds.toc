@@ -2,7 +2,7 @@
 ## Title: Ashen Builds
 ## Notes: All-class Turtle WoW build planner with embedded AshenDB
 ## Author: The Ashen Banner
-## Version: 1.0.11
+## Version: 1.0.12
 ## X-Maintainer: Shadgy
 ## X-Website: https://github.com/Shadgy/AshenBuilds
 ## X-Upstream: https://github.com/Tracer96/AshenBuilds
@@ -86,6 +86,7 @@ Data\AshenDB\Data\Sources\Sources_028.lua
 Data\AshenDB\Data\Sources\Sources_029.lua
 Data\AshenDB\Data\Sources\Sources_030.lua
 Data\OctoItems.lua
+Data\OctoUnverifiedItems.lua
 Data\ShieldBlock.lua
 Data\AshenDBAdapter.lua
 Data\Enchants.lua
