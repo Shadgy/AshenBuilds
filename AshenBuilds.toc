@@ -85,6 +85,7 @@ Data\AshenDB\Data\Sources\Sources_027.lua
 Data\AshenDB\Data\Sources\Sources_028.lua
 Data\AshenDB\Data\Sources\Sources_029.lua
 Data\AshenDB\Data\Sources\Sources_030.lua
+Data\OctoItems.lua
 Data\ShieldBlock.lua
 Data\AshenDBAdapter.lua
 Data\Enchants.lua

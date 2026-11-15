@@ -63,6 +63,9 @@ once; later user choices persist. A known future requirement remains gated.
 - `r`: number of immediate routes combined; `h`: explicit PvP rank when present.
 - Enchants additionally retain `spell`, applying `items`, learning `recipes` and
   actual `trainers` IDs when the snapshot provides them.
+- `questMinimumLevels` records known differences between acceptance and display
+  level. The item index uses the acceptance level for quest-only rewards, while
+  the source tooltip keeps displaying the quest level.
 
 Alternative acquisition routes use the earliest possible phase; required ingredients
 and recipe learning use the latest necessary phase. A currently mapped route wins

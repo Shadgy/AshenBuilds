@@ -42,16 +42,19 @@ local function HasBit(mask, bit) return math.mod(math.floor(mask / bit), 2) == 1
 AB.HasBit = HasBit
 
 -- Level needed to use an item: its required level, or for a quest reward with no
--- other source, the level of the lowest quest that gives it (whichever is higher).
+-- other source, the lowest level at which an awarding quest can be accepted.
 local function UseLevel(id, r)
   local req = r[4] or 0
   local ss = AshenDB and AshenDB.ItemSources and AshenDB.ItemSources[id]
   if not ss then return req end
+  local minimumLevels=AshenBuildsContentSources and AshenBuildsContentSources.questMinimumLevels
   local quest, i, s
   for i = 1, table.getn(ss) do
     s = ss[i]
     if s[1] ~= "quest" then return req end
-    if (tonumber(s[7]) or 0) > 0 and (not quest or s[7] < quest) then quest = s[7] end
+    local minimum=minimumLevels and minimumLevels[s[2]]
+    if minimum==nil then minimum=tonumber(s[7]) end
+    if minimum and minimum>0 and (not quest or minimum<quest) then quest=minimum end
   end
   if quest and quest > req then return quest end
   return req
@@ -94,6 +97,11 @@ local function SourceInfo(id, r)
     if bit>0 and not HasBit(mask,bit) then mask=mask+bit end
     if route.instance then table.insert(words,route.instance) end
     if route.source then table.insert(words,route.source) end
+  end
+  local override=AB.ItemAvailabilityOverrides[id]
+  if override then
+    if override.instance then table.insert(words,override.instance) end
+    if override.source then table.insert(words,override.source) end
   end
   return mask, string.lower(table.concat(words, " "))
 end

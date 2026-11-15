@@ -51,7 +51,7 @@ class Sources:
         for r in c.execute('select item,source from item_sources'): self.categories[r['item']].add(r['source'])
         for r in c.execute('select src,owner,item from drops where chance>0'):
             self.routes[r['item']].append((r['src'],r['owner']))
-        self.quests={r['entry']:dict(r) for r in c.execute('select entry,zone,prevquest from quests')}
+        self.quests={r['entry']:dict(r) for r in c.execute('select entry,zone,prevquest,level,minlevel from quests')}
         self.quest_maps=defaultdict(set); self.quest_items=defaultdict(list); self.quest_npcs=defaultdict(set)
         for r in c.execute('select quest,zone from quest_dungeon'):
             if r['zone'] in self.areas: self.quest_maps[r['quest']].add(self.areas[r['zone']][0])
@@ -215,8 +215,13 @@ def generate(database,root=ROOT):
           'sha256':hashlib.sha256(Path(database).read_bytes()).hexdigest(),'profileChecked':'2026-11-10',
           'itemCount':len(records),'enchantCount':len(enchant_records),'source':'https://github.com/Xian55/tortoise-db-viewer'}
     locations=location_records(source.maps)
+    quest_min_levels={qid: quest['minlevel'] for iid in records
+                      for kind,qid in source.routes[iid] if kind=='quest'
+                      and (quest:=source.quests.get(qid)) and quest['minlevel'] is not None
+                      and quest['minlevel']!=quest['level']}
     lines=['-- Generated complete acquisition summaries. See docs/content-sources.md; do not edit by hand.',
-           'AshenBuildsContentSources={meta='+lua(meta)+',locations='+lua(locations)+',items={},enchants={}}',
+           'AshenBuildsContentSources={meta='+lua(meta)+',locations='+lua(locations)+',items={},enchants={},',
+           '  questMinimumLevels='+lua(quest_min_levels)+'}',
            'local I=AshenBuildsContentSources.items']
     lines.extend('I['+str(iid)+']='+lua(record) for iid,record in records.items())
     lines.append('local E=AshenBuildsContentSources.enchants')

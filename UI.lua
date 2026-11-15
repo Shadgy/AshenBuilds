@@ -1577,7 +1577,7 @@ function AB:ShowItemTooltip(owner,id)
   local slot=AB_SLOT_NAMES[item.slot] or item.slot or ""; local typeName=""
   if item.itemClass==4 then typeName=AB_ARMOR_NAMES[item.subclass] or "" elseif item.itemClass==2 then typeName=item.weaponType or "" end
   if slot~="" then self:AddTooltipDouble(slot,typeName,1,1,1,1,1,1) end
-  if item.itemClass==2 and item.minDamage and item.maxDamage and item.maxDamage>0 then self:AddTooltipDouble(string.format("%d - %d Damage",item.minDamage,item.maxDamage),item.speed and item.speed>0 and string.format("Speed %.2f",item.speed) or "",1,1,1,1,1,1); if item.stats and item.stats.dps then GameTooltip:AddLine(string.format("(%.1f damage per second)",item.stats.dps),1,1,1) end end
+  if item.itemClass==2 and item.minDamage and item.maxDamage and item.maxDamage>0 then self:AddTooltipDouble(string.format("%g - %g Damage",item.minDamage,item.maxDamage),item.speed and item.speed>0 and string.format("Speed %.2f",item.speed) or "",1,1,1,1,1,1); if item.stats and item.stats.dps then GameTooltip:AddLine(string.format("(%.1f damage per second)",item.stats.dps),1,1,1) end end
   if item.armor and item.armor>0 then GameTooltip:AddLine(item.armor.." Armor",1,1,1) end
   if item.shield and item.shieldBlockKnown then GameTooltip:AddLine((item.shieldBaseBlockValue or 0).." Block",1,1,1) end
   local i,k,v,e,trig,prefix

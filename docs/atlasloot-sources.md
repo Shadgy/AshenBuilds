@@ -22,7 +22,9 @@ python tools/build_atlasloot_sources.py PATH_TO_ATLASLOOT --database tools/work/
 ```
 
 The output's `meta.files` stores SHA-256 hashes for AtlasLoot's TOC and loaded
-Database files, plus the unchanged addon enchant/source catalogs. The optional
+Database files, plus the addon enchant/source catalogs used at export time.
+The later quest acceptance-level table changes the source catalog's bytes
+without changing the recorded phase summaries. The optional
 SQLite join snapshot is recorded by SHA-256
 `3ab59b9aab18adc8bcbba2363635e5eef666d8423d5e5ee376913fd6b24743b4`.
 It supplies exact spell-to-product, use-item and recipe joins; its presence alone

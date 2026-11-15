@@ -24,6 +24,10 @@ for testing and future updates.
 **Import Character** reads your equipped gear and learned talents. Choose
 whether to update the current plan or open a new draft.
 
+The item database now includes verified Octo sources for additional Dire Maul and
+Stormwind Vault gear and eight new item definitions. See the
+[Octo item audit](docs/octo-item-audit.md).
+
 ### Included from 1.0.10
 
 **Share Build** and **Import Build** use copy and paste. Automatic Community

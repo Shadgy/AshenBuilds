@@ -2,6 +2,8 @@
 
 ## 1.0.11
 
+- Restore two Shen'dralar craft products, nine Dire Maul vendor items and four Stormwind Vault quest rewards. Use the minimum quest acceptance level when filtering usable rewards.
+- Add eight Octo item definitions. Keep three PvP entries without confirmed acquisition behind Unverified.
 - Import Character reads worn equipment, permanent enchants and learned talents into the planner. Choose Overwrite, New Build or Cancel before applying the import.
 - Imported changes remain a draft until Save Changes. If worn items or learned talents cannot be read reliably, the current plan is kept.
 

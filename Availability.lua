@@ -36,7 +36,25 @@ table.sort(AB.CONTENT_INSTANCES)
 
 -- Public override tables allow verified server exceptions without changing item IDs or saves.
 -- A phase here means every known route requires it; incomplete source lists remain unknown.
-AB.ItemAvailabilityOverrides = AB.ItemAvailabilityOverrides or {}
+local shendralarVendor={phase=0,instance="Dire Maul",source="Elisandra Spellbinder (Shen'dralar Quartermaster)",verification="Octo database and AtlasLoot"}
+AB.ItemAvailabilityOverrides = AB.ItemAvailabilityOverrides or {
+  -- Pattern 55055 is sold in Dire Maul. AtlasLoot links spell 36915 to the cloak.
+  [55056]={phase=0,instance="Dire Maul",source="Tailoring (pattern from Shen'dralar Provisioner)",verification="Octo database and AtlasLoot"},
+  [55060]={phase=0,instance="Dire Maul",source="Jewelcrafting (plans from Shen'dralar Provisioner)",verification="Octo database and AtlasLoot"},
+  [58251]=shendralarVendor,[58252]=shendralarVendor,[58253]=shendralarVendor,
+  [58254]=shendralarVendor,[58255]=shendralarVendor,[58256]=shendralarVendor,
+  [58257]=shendralarVendor,[58258]=shendralarVendor,[58259]=shendralarVendor,
+  -- Quest 40425 is Alliance only. Ending Arc'Tiras (40427 / 41139) has rewards for both factions.
+  [60622]={phase=0,instance="Stormwind Vault",source="The Tome of Arcane Intricacies and Magical Phenomenon IX (Alliance quest)",verification="Octo database"},
+  [60624]={phase=0,instance="Stormwind Vault",source="Ending Arc'Tiras",verification="Octo database"},
+  [60625]={phase=0,instance="Stormwind Vault",source="Ending Arc'Tiras",verification="Octo database"},
+  [60626]={phase=0,instance="Stormwind Vault",source="Ending Arc'Tiras",verification="Octo database"},
+  [90051]={phase=0,source="Way of the Samurai starting weapon",verification="Octo item and player report"},
+  [90053]={phase=0,source="Weapon vendors",verification="Octo database"},
+  [90060]={phase=0,source="Together Forever challenge (24-hour cooldown)",verification="Octo challenge rewards"},
+  [90061]={phase=0,source="Together Forever challenge at level 60 (1-hour cooldown)",verification="Octo challenge rewards"},
+  [93223]={phase=0,source="Blacksmithing (155)",verification="Octo patch notes and AtlasLoot"},
+}
 AB.EnchantAvailabilityOverrides = AB.EnchantAvailabilityOverrides or {
   [37]={phase=6,instance="Naxxramas",source="Sapphiron",item=23548},
   [38]={phase=6,instance="Naxxramas",source="Sapphiron"},
@@ -206,7 +224,7 @@ end
 local function Curated(o,settings)
   local result=Override(o,settings)
   result.verified=result.status=="available" or result.status=="future"
-  result.verification="Recorded server exception"
+  result.verification=o.verification or "Recorded server exception"
   result.minPhase=result.phase
   return result
 end
