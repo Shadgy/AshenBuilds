@@ -119,6 +119,12 @@ check("talents map to planner keys despite a different client enumeration order"
 check("overwrite keeps the build name, notes and saved baseline",replaced.name==name and replaced.notes=="Keep these planning notes" and replaced.savedName==name and replaced._savedRevision==revision)
 check("overwrite returns to Planner and changes only the draft",A.plannerPage:IsShown() and A:HasUnsavedChanges() and libraryUnmodified())
 
+A:SetDefenseSetting("holyShield",true,replaced)
+A:ImportCharacter()
+Click(prompt.accept)
+check("same-class character import retains the selected active defense preview",
+  A.current==replaced and A:GetDefenseSettings(replaced).holyShield and libraryUnmodified())
+
 A:ImportCharacter()
 Click(prompt.alternate)
 check("new build asks before leaving an unsaved current draft",prompt:IsShown() and A.current==replaced and not prompt.alternate:IsShown())

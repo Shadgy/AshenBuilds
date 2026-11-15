@@ -133,6 +133,10 @@ delete `WTF`. Fully restart the client after replacing addon files.
   in place. Try New Build and check the item slots and spent points against the
   character. Check Overwrite on a disposable saved build, including that the
   imported draft only changes the library after Save Changes.
+- Import a Human wearing Ring of Binding and compare Spirit and the five
+  resistances with the native sheet. Switch Holy Shield in Defense Details:
+  the main card shows passive Block with it off and adds 45 percentage points
+  with it on and the talent learned. Compare against the same active effects.
 - Run the warrior simulator and open its result/log/settings windows.
 - Confirm there are no new Lua errors; record client/server version and results in the release notes.
 

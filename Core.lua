@@ -1,5 +1,5 @@
 AshenBuilds = AshenBuilds or {}
-AshenBuilds.VERSION = "1.0.13"
+AshenBuilds.VERSION = "1.0.14"
 
 AshenBuilds.SLOTS = {
   "HEAD","NECK","SHOULDER","BACK","CHEST","SHIRT","TABARD","WRIST","HANDS","WAIST","LEGS","FEET",
@@ -276,10 +276,12 @@ end
 
 -- Equip effects the item export leaves out of the stat table, read once from the tooltip text.
 local EFFECT_STATS = {}
+local RESISTANCE_STATS = {Arcane="arcaneRes", Fire="fireRes", Frost="frostRes", Nature="natureRes", Shadow="shadowRes"}
 local EFFECT_PATTERNS = {
   {"block value of your shield by (%d+)", "blockValue"},
   {"^Block Value %+(%d+)", "blockValue"},
   {"^%+(%d+) Block Value", "blockValue"},
+  {"^Increases Defense by %d+, Shadow resistance by (%d+) and your normal health regeneration by %d+%.?$", "shadowRes"},
 }
 function AshenBuilds:GetItemEffectStats(id)
   id = tonumber(id)
@@ -298,6 +300,16 @@ function AshenBuilds:GetItemEffectStats(id)
           value = tonumber(n)
           if value then stats[EFFECT_PATTERNS[j][2]] = (stats[EFFECT_PATTERNS[j][2]] or 0) + value end
         end
+        local _, _, allRes = string.find(text, "^%+(%d+) All Resistances%.?$")
+        if allRes then
+          for _,key in pairs(RESISTANCE_STATS) do
+            stats[key] = (stats[key] or 0) + tonumber(allRes)
+          end
+        else
+          local _, _, amount, school = string.find(text, "^%+(%d+) (%a+) Resistance%.?$")
+          local key = RESISTANCE_STATS[school]
+          if key then stats[key] = (stats[key] or 0) + tonumber(amount) end
+        end
       end
     end
   end
@@ -314,8 +326,7 @@ function AshenBuilds:GetGearTotals(build)
     id = build.items[slot]
     item = id and self:GetItem(id)
     if item then
-      if self.GetItemStatTotals then AddStats(totals,self:GetItemStatTotals(id))
-      else AddStats(totals,item.stats); AddStats(totals,self:GetItemEffectStats(id)) end
+      AddStats(totals,self:GetItemStatTotals(id))
     end
     enchantID = build.enchants and build.enchants[slot]
     enchant = enchantID and AshenBuildsEnchants and AshenBuildsEnchants[enchantID]
@@ -628,6 +639,7 @@ end
 local AB=AshenBuilds
 local RACE_ORDER={"Human","Orc","Dwarf","NightElf","Undead","Tauren","Gnome","Troll"}
 local STAT_KEYS={"str","agi","sta","int","spi"}
+local HUMAN_SPIRIT_PCT=5
 
 local function StatData() return AshenBuildsBaseStats or {} end
 
@@ -663,6 +675,7 @@ function AB:GetBaseProfile(build)
   local level=self.ValidLevel(build.level)
   local out={className=className,raceKey=raceKey,level=level}
   local classRows=(data.levelStats and data.levelStats[className]) or {}
+  local rowRace=raceKey
   local row=classRows[raceKey]
   local offsets=data.raceOffsets or {}
   local adjust={0,0,0,0,0}
@@ -672,15 +685,24 @@ function AB:GetBaseProfile(build)
     -- shift it by the difference in racial stats.
     for i=1,table.getn(RACE_ORDER) do
       if classRows[RACE_ORDER[i]] then
-        row=classRows[RACE_ORDER[i]]
-        local want=offsets[raceKey] or {0,0,0,0,0}; local have=offsets[RACE_ORDER[i]] or {0,0,0,0,0}
+        rowRace=RACE_ORDER[i]
+        row=classRows[rowRace]
+        local want=offsets[raceKey] or {0,0,0,0,0}; local have=offsets[rowRace] or {0,0,0,0,0}
         for k=1,5 do adjust[k]=(want[k] or 0)-(have[k] or 0) end
+        -- The offsets also include the +1 displayed Human Spirit at level 1.
+        if rowRace=="Human" then adjust[5]=adjust[5]+1 end
+        if raceKey=="Human" then adjust[5]=adjust[5]-1 end
         break
       end
     end
   end
   local at=(level-1)*5
-  for i=1,5 do out[STAT_KEYS[i]]=((row and row[at+i]) or 0)+adjust[i] end
+  for i=1,5 do
+    local value=(row and row[at+i]) or 0
+    -- Human rows already contain the floored racial bonus on naked Spirit.
+    if STAT_KEYS[i]=="spi" and rowRace=="Human" then value=math.ceil(value*100/(100+HUMAN_SPIRIT_PCT)) end
+    out[STAT_KEYS[i]]=value+adjust[i]
+  end
   local pools=data.classLevel and data.classLevel[className]
   out.health=(pools and pools[(level-1)*2+1]) or 0
   out.mana=(pools and pools[(level-1)*2+2]) or 0
@@ -770,7 +792,7 @@ function AB:GetClassRangedAttackPower(class,level,agi)
 end
 
 -- Racial passives that change the character sheet.
-local RACIALS={Human={spiPct=5}, Gnome={intPct=5}, Tauren={healthPct=5}, NightElf={dodge=1}}
+local RACIALS={Human={spiPct=HUMAN_SPIRIT_PCT}, Gnome={intPct=5}, Tauren={healthPct=5}, NightElf={dodge=1}}
 
 local function Pct(value,pct) return value*(1+(pct or 0)/100) end
 
@@ -788,11 +810,16 @@ function AB:GetDerivedStats(build)
   local feral=(className=="Druid" and (form=="bear" or form=="direbear" or form=="cat"))
   local out={gear=gear,base=base,talentModifiers=m,warnings={}}
 
-  local function Primary(key)
+  local function Primary(key,talentPct,racialPct)
     local v=(base[key] or 0)+(gear[key] or 0)
-    return math.floor(Pct(Pct(v,m[key.."Pct"]),racial[key.."Pct"])+0.5)
+    if key=="spi" and base.raceKey=="Human" then
+      return math.floor(v*(100+(talentPct or 0))*(100+(racialPct or 0))/10000)
+    end
+    return math.floor(Pct(Pct(v,talentPct),racialPct)+0.5)
   end
-  out.str=Primary("str"); out.agi=Primary("agi"); out.sta=Primary("sta"); out.int=Primary("int"); out.spi=Primary("spi")
+  for _,key in ipairs(STAT_KEYS) do
+    out[key]=Primary(key,m[key.."Pct"],racial[key.."Pct"])
+  end
 
   out.health=math.floor(Pct(Pct(base.health+HealthFromStamina(out.sta)+(gear.health or 0),m.healthPct),racial.healthPct))
   out.mana=0
@@ -891,8 +918,10 @@ function AB:GetDerivedStats(build)
   SkillLines("mainSkill",out.mainSkill); SkillLines("offSkill",out.offSkill); SkillLines("rangedSkill",out.rangedSkill)
   local function PrimaryLines(key)
     local lines={{"Base ("..base.raceKey.." "..className..")",base[key]},{"Gear and enchants",gear[key] or 0}}
-    if m[key.."Pct"] then table.insert(lines,{"Talents +"..m[key.."Pct"].."%",out[key]-math.floor(Pct((base[key] or 0)+(gear[key] or 0),racial[key.."Pct"])+0.5)}) end
-    if racial[key.."Pct"] then table.insert(lines,{"Racial +"..racial[key.."Pct"].."%",out[key]-math.floor(Pct((base[key] or 0)+(gear[key] or 0),m[key.."Pct"])+0.5)}) end
+    local talentPct,racialPct=m[key.."Pct"],racial[key.."Pct"]
+    local withTalents=Primary(key,talentPct,nil)
+    if talentPct then table.insert(lines,{"Talents "..string.format("%+d",talentPct).."%",withTalents-Primary(key,nil,nil)}) end
+    if racialPct then table.insert(lines,{"Racial +"..racialPct.."%",out[key]-withTalents}) end
     Explain(key,lines)
   end
   PrimaryLines("str"); PrimaryLines("agi"); PrimaryLines("sta"); PrimaryLines("int"); PrimaryLines("spi")

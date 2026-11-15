@@ -40,6 +40,12 @@ local medic=A:GetItem(33218)
 check("Field Medic's Band retains the Octo tooltip stats and slot",
   medic and medic.slot=="FINGER" and medic.stats.sta==10 and medic.stats.int==6
     and medic.stats.healing==26 and medic.stats.mp5==3)
+local phaseZero={profile="Octo",phase=0,includeUnknown=false,showFuture=false}
+for _,id in ipairs({3008,7338,33218}) do
+  local availability=A:GetItemAvailability(id,phaseZero)
+  check("item "..id.." remains Unverified and hidden by default in phase 0",
+    availability.status=="unknown" and not A:MatchesAvailability(availability,phaseZero,true))
+end
 local helm=A:GetItem(83585)
 check("player-only armor effects stay out of generic stats",
   helm and helm.stats.armor==393 and helm.stats.crit==1

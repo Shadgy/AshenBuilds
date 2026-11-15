@@ -19,7 +19,12 @@ See [CHANGELOG.md](CHANGELOG.md) for fork changes,
 [maintenance guide](https://github.com/Shadgy/AshenBuilds/blob/main/docs/MAINTENANCE.md)
 for testing and future updates.
 
-### What is new in 1.0.13
+### What is new in 1.0.14
+
+Character Totals now includes passive item resistance bonuses such as Ring of
+Binding's +5 to all schools and applies the Human Spirit racial once.
+
+### Included from 1.0.13
 
 Crafted item availability includes tools such as Salt Shaker when resolving
 the materials. Corehound Belt and other affected crafts return to the item

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.14
+
+- Count unconditional Equip resistance missing from the item stat export, including Ring of Binding, Demon's Blood and Encrusted Gemstone Ring.
+- Apply the Human Spirit racial once to unmodified base Spirit and gear. Align the Spirit breakdown with the sheet total.
+
 ## 1.0.13
 
 - Resolve crafting dependencies through items that trigger an actual Create Item spell, including Salt Shaker. Regenerate the acquisition metadata from the same Tortoise and AtlasLoot snapshots.
